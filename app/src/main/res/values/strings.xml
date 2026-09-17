@@ -89,6 +89,8 @@
     <string name="hint_auto_logout_minutes">Auto sign-out after (minutes, 0 = never)</string>
     <string name="error_auto_logout_minutes">Enter 0–1440</string>
 
-    <string name="station_offline_title">MAIN STATION OFFLINE</string>
-    <string name="station_offline_message">Please wait for the main station to reconnect...</string>
+    <!-- Forced sign-out (spec §2, §3) -->
+    <string name="signed_out_station_offline">Station went offline — you were signed out. Sign in again when the station is back online.</string>
+    <string name="signed_out_inactivity">Signed out after %1$d minutes of inactivity.</string>
+    <string name="login_station_offline_banner">Station is offline. Sign-in is unavailable until the station app is running.</string>
 </resources>

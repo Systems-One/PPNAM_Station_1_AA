@@ -9,7 +9,7 @@ import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station1aa.databinding.ActivitySettingsBinding
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : SessionActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
 
@@ -83,6 +83,7 @@ class SettingsActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
+            SessionGuard.applyTimeout()
 
             val typedPassword = binding.etBrokerPassword.text.toString()
             val newSettings = BrokerSettings(

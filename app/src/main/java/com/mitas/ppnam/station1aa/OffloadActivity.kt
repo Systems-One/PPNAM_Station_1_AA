@@ -36,7 +36,7 @@ import org.json.JSONObject
  * BATCH_REFERENCE_REQUIRED) keep the operator on the edit step; any other rejection returns
  * to scanning.
  */
-class OffloadActivity : AppCompatActivity() {
+class OffloadActivity : SessionActivity() {
 
     private enum class Step { SCAN, MATCHING, EDIT, CONFIRMING, CLOSING }
 
@@ -56,6 +56,7 @@ class OffloadActivity : AppCompatActivity() {
     private val rfidReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
+                SessionGuard.touch()
                 val data = intent.getStringExtra("data")
                 if (!data.isNullOrEmpty() && step == Step.SCAN) {
                     binding.etTag.setText(data)
@@ -68,6 +69,7 @@ class OffloadActivity : AppCompatActivity() {
     private val barcodeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.scanner.broadcast") {
+                SessionGuard.touch()
                 val data = intent.getStringExtra("data")
                 if (!data.isNullOrEmpty() && step == Step.SCAN) {
                     binding.etBarcode.setText(data)

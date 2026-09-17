@@ -30,7 +30,16 @@ class LoginActivity : AppCompatActivity() {
     private var loggedIn = false
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
-        runOnUiThread { binding.connectionPill.setStatus(status) }
+        runOnUiThread {
+            binding.connectionPill.setStatus(status)
+            binding.tvStationOfflineBanner.visibility =
+                if (status == ConnectionStatus.STATION_OFFLINE) View.VISIBLE else View.GONE
+        }
+    }
+
+    companion object {
+        /** Why the operator landed here without asking to (spec §2-§3); shown as the error text. */
+        const val EXTRA_SIGNED_OUT_REASON = "signed_out_reason"
     }
 
     private val badgeReceiver = object : BroadcastReceiver() {
@@ -75,6 +84,9 @@ class LoginActivity : AppCompatActivity() {
 
         binding.btnLogin.applyPressScaleFeedback()
 
+        intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() }
+            ?.let { showError(it) }
+
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.
         onBackPressedDispatcher.addCallback(this) { showExitDialog() }
@@ -95,11 +107,21 @@ class LoginActivity : AppCompatActivity() {
         unregisterReceiver(badgeReceiver)
     }
 
+    /** Spec §2: with the station's presence offline no login can succeed — say so at once. */
+    private fun stationIsOffline(): Boolean {
+        val mqtt = MqttManager.getInstance(this)
+        return mqtt.isConnected() && !mqtt.isStationOnline
+    }
+
     private fun submitCredentials() {
         val username = binding.etUsername.text.toString().trim()
         val password = binding.etPassword.text.toString()
         if (username.isEmpty() || password.isEmpty()) {
             showError(getString(R.string.error_fill_all_fields))
+            return
+        }
+        if (stationIsOffline()) {
+            showError(getString(R.string.login_station_offline_banner))
             return
         }
         if (loginInFlight || loggedIn) return
@@ -110,6 +132,10 @@ class LoginActivity : AppCompatActivity() {
     private fun attemptBadgeLogin(badgeTag: String) {
         if (loginInFlight || loggedIn) return
         runOnUiThread {
+            if (stationIsOffline()) {
+                showError(getString(R.string.login_station_offline_banner))
+                return@runOnUiThread
+            }
             setLoggingIn(true)
             authClient.loginWithBadge(badgeTag) { result -> onLoginResult(result) }
         }

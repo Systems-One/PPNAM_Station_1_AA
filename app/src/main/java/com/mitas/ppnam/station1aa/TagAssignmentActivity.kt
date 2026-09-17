@@ -20,7 +20,7 @@ import com.mitas.ppnam.station1aa.databinding.ActivityTagAssignmentBinding
  * tagId. The UI stays pending until that result (or the 10-second timeout) — a PUBACK is
  * transport-only and never shown as success.
  */
-class TagAssignmentActivity : AppCompatActivity() {
+class TagAssignmentActivity : SessionActivity() {
 
     private lateinit var binding: ActivityTagAssignmentBinding
     private lateinit var workflow: WorkflowClient
@@ -33,6 +33,7 @@ class TagAssignmentActivity : AppCompatActivity() {
     private val rfidReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
+                SessionGuard.touch()
                 val data = intent.getStringExtra("data")
                 if (!data.isNullOrEmpty()) onTagScanned(data)
             }

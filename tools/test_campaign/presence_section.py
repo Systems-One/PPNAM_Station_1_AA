@@ -47,20 +47,30 @@ def wait_pill(want: str, timeout=30) -> str:
 
 def main():
     with SimControl() as sim:
-        with c.case("P1", "Station offline shows the blocking overlay on Main; online clears it") as case:
+        with c.case("P1", "Station offline signs the operator out with a reason; login refuses while offline") as case:
             login_to_main(sim)
             sim.cmd("station", state="offline")
-            overlay = None
-            deadline = time.time() + 15
-            while time.time() < deadline:
-                overlay = d.find(id="layoutStationOffline", retries=1)
-                if overlay is not None:
-                    break
-                time.sleep(1)
-            expect(overlay is not None, "station-offline overlay never appeared")
-            case.shot(d.screenshot("P1_station_offline"))
+            expect(d.find(id="etUsername", retries=15) is not None,
+                   "station offline did not return to the login screen")
+            err = d.find(id="tvLoginError", retries=5)
+            expect(err is not None and "signed out" in err.text.lower(), f"reason text {err}")
+            case.note(f"reason: {err.text!r}")
+            banner = d.find(id="tvStationOfflineBanner", retries=5)
+            expect(banner is not None, "offline banner not shown on login")
+            case.shot(d.screenshot("P1_station_offline_login"))
+            # A login attempt while offline fails immediately, not after the 10s timeout.
+            d.type_into("etUsername", "op.both")
+            d.type_into("etPassword", "both123!")
+            d.key("KEYCODE_BACK")
+            t0 = time.time()
+            d.tap(id="btnLogin")
+            err = d.find(id="tvLoginError", retries=3)
+            expect(err is not None and "offline" in err.text.lower() and time.time() - t0 < 6,
+                   f"offline login did not fail fast: {err}")
             sim.cmd("station", state="online")
-            expect(d.wait_gone("layoutStationOffline", timeout=15), "overlay did not clear")
+            expect(d.wait_gone("tvStationOfflineBanner", timeout=15), "banner did not clear")
+            d.tap(id="btnLogin")
+            expect(d.find(id="tileTagAssignment", retries=8) is not None, "login after recovery failed")
 
         with c.case("P2", "Network drop fires the Last Will; reconnect republishes online presence") as case:
             base = len(sim.events())

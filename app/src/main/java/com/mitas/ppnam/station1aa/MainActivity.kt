@@ -5,33 +5,17 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.mitas.ppnam.station1aa.databinding.ActivityMainBinding
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : SessionActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread {
             binding.connectionPill.setStatus(status)
-        }
-    }
-
-    private val stationStatusListener: (Boolean) -> Unit = { online ->
-        runOnUiThread {
-            if (online) {
-                binding.layoutStationOffline.visibility = android.view.View.GONE
-            } else {
-                binding.layoutStationOffline.visibility = android.view.View.VISIBLE
-                // Bring MainActivity to front and clear others
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-            }
         }
     }
 
@@ -63,7 +47,6 @@ class MainActivity : AppCompatActivity() {
         setupDashboard()
 
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
-        MqttManager.getInstance(this).addStationStatusListener(stationStatusListener)
     }
 
     private fun setupDashboard() {
@@ -124,6 +107,5 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
-        MqttManager.getInstance(this).removeStationStatusListener(stationStatusListener)
     }
 }
