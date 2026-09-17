@@ -1,7 +1,7 @@
 {
  "campaign": "settings",
- "ranAt": "2026-08-25T15:25:21Z",
- "durationS": 226.9,
+ "ranAt": "2026-09-17T17:02:39Z",
+ "durationS": 314.5,
  "results": [
   {
    "id": "S1",
@@ -49,7 +49,7 @@
    "verdict": "PASS",
    "detail": "",
    "notes": [
-    "deviceId=scanner_5c64df8d86a8 version=v1.0 (1)"
+    "deviceId=scanner_5c64df8d86a8 version=v1.3.0 (3)"
    ],
    "shots": []
   },
@@ -82,6 +82,16 @@
    "shots": [
     "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\S8_after_save.png"
    ]
+  },
+  {
+   "id": "S9",
+   "description": "Auto sign-out minutes are validated and saved",
+   "verdict": "PASS",
+   "detail": "",
+   "notes": [
+    "auto sign-out set to 1 minute (restored to 15 by L12)"
+   ],
+   "shots": []
   }
  ]
 }

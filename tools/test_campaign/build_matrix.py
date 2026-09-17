@@ -37,7 +37,7 @@ def main():
         "",
         f"Campaign against the v3.2.0 backend simulator (`tools/station_sim.py`) on the",
         f"physical Chainway C72 (`HC720DE260100322`), driven over adb with scans injected",
-        f"as scanner broadcasts. Simulator itself verified by 76 pytest cases and a",
+        f"as scanner broadcasts. Simulator itself verified by 83 pytest cases and a",
         "17-check live protocol run (`tools/test_campaign/fake_scanner.py`).",
         "",
         f"**Overall: {passed}/{total} passed** — generated "

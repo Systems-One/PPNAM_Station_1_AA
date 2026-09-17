@@ -1,16 +1,19 @@
 {
  "campaign": "presence",
- "ranAt": "2026-08-25T15:26:35Z",
- "durationS": 73.6,
+ "ranAt": "2026-09-17T17:09:51Z",
+ "durationS": 108.1,
  "results": [
   {
    "id": "P1",
-   "description": "Station offline shows the blocking overlay on Main; online clears it",
+   "description": "Station offline signs the operator out with a reason; login refuses while offline",
    "verdict": "PASS",
    "detail": "",
-   "notes": [],
+   "notes": [
+    "reason: 'Station went offline \u00e2\u20ac\u201d you were signed out. Sign in again when the station is back online.'",
+    "refused in ~6s: 'Station is offline. Sign-in is unavailable until the station app is running.'"
+   ],
    "shots": [
-    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\P1_station_offline.png"
+    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\P1_station_offline_login.png"
    ]
   },
   {

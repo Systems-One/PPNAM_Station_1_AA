@@ -1,13 +1,13 @@
 # Station 1 App — Functional Test Matrix
 
-Campaign against the v3.1.0 backend simulator (`tools/station_sim.py`) on the
+Campaign against the v3.2.0 backend simulator (`tools/station_sim.py`) on the
 physical Chainway C72 (`HC720DE260100322`), driven over adb with scans injected
-as scanner broadcasts. Simulator itself verified by 74 pytest cases and a
+as scanner broadcasts. Simulator itself verified by 83 pytest cases and a
 17-check live protocol run (`tools/test_campaign/fake_scanner.py`).
 
-**Overall: 41/41 passed** — generated 2026-08-25 15:26 UTC
+**Overall: 45/45 passed** — generated 2026-09-17 17:10 UTC
 
-## Login & Session (contract §4) — 10/10
+## Login & Session (contract §4) — 12/12
 
 | ID | Case | Verdict | Notes |
 |---|---|---|---|
@@ -21,6 +21,8 @@ as scanner broadcasts. Simulator itself verified by 74 pytest cases and a
 | L8 | Unknown badge is rejected and stays on login | PASS | error shown: 'Badge not recognized.' |
 | L9 | Login timeout (station silent) surfaces an error, app stays usable | PASS | error shown: 'Station did not respond' |
 | L10 | Logout returns to login and closes the session at the station | PASS |  |
+| L11 | Login dropdown lists the station's operators; picking one fills the username | PASS | station served 4 operators; picked 'op.off' from the dropdown |
+| L12 | Inactivity auto sign-out returns to login with a reason | PASS | signed out after ~66s: 'Signed out after 1 minutes of inactivity.' |
 
 ## Tag Assignment (contract §5) — 7/7
 
@@ -34,7 +36,7 @@ as scanner broadcasts. Simulator itself verified by 74 pytest cases and a
 | T6 | Forced INTERNAL_ERROR is surfaced as a station error | PASS | status: 'Unexpected station error.' |
 | T7 | Expired session sends the operator back to login | PASS |  |
 
-## Offload (contract §6) — 13/13
+## Offload (contract §6) — 14/14
 
 | ID | Case | Verdict | Notes |
 |---|---|---|---|
@@ -47,12 +49,13 @@ as scanner broadcasts. Simulator itself verified by 74 pytest cases and a
 | O7 | Client-side validation blocks a zero weight locally | PASS |  |
 | O8 | Server-side INVALID_BAG_WEIGHT keeps the operator on the edit step | PASS | status: 'Invalid bag weight.' |
 | O9 | Confirm timeout stays on edit; retry succeeds | PASS |  |
-| O10 | Done -> Complete closes the document; its pallets stop resolving | PASS | post-close scan status: 'Document unknown.' |
-| O11 | Short and Over classifications are both accepted | PASS | Short: 'ST-000077 closed â€” Short'; Over: 'ST-000077 closed â€” Over' |
+| O10 | Done -> Complete closes the document and returns home; its pallets stop resolving | PASS | returned to home after Complete; post-close scan status: 'Document unknown.' |
+| O11 | Short and Over classifications are both accepted | PASS | Short: returned home; Over: returned home |
 | O12 | Failed completion re-offers the close prompt; retry closes | PASS |  |
 | O13 | Back to scan from the edit step keeps the scanned pair | PASS |  |
+| O14 | RFID and barcode fields ignore typing; only scans fill them | PASS |  |
 
-## Settings, Provisioning & Diagnostics — 8/8
+## Settings, Provisioning & Diagnostics — 9/9
 
 | ID | Case | Verdict | Notes |
 |---|---|---|---|
@@ -60,15 +63,16 @@ as scanner broadcasts. Simulator itself verified by 74 pytest cases and a
 | S2 | Five wrong PINs trigger the 30s lockout | PASS | lockout: 'Too many attempts. Try again in 30s.' |
 | S3 | Correct PIN reveals the broker form prefilled with current settings | PASS |  |
 | S4 | Invalid port blocks the save locally | PASS |  |
-| S5 | Diagnostics show the derived device id and app version | PASS | deviceId=scanner_5c64df8d86a8 version=v1.0 (1) |
+| S5 | Diagnostics show the derived device id and app version | PASS | deviceId=scanner_5c64df8d86a8 version=v1.3.0 (3) |
 | S6 | Diagnostics pills: broker Connected, station Online | PASS |  |
 | S7 | Station offline flips the station pill without blaming the broker | PASS |  |
 | S8 | Save with unchanged values restarts and reconnects (blank password kept) | PASS |  |
+| S9 | Auto sign-out minutes are validated and saved | PASS | auto sign-out set to 1 minute (restored to 15 by L12) |
 
 ## Presence & Reconnect (contract §8) — 3/3
 
 | ID | Case | Verdict | Notes |
 |---|---|---|---|
-| P1 | Station offline shows the blocking overlay on Main; online clears it | PASS |  |
+| P1 | Station offline signs the operator out with a reason; login refuses while offline | PASS | reason: 'Station went offline â€” you were signed out. Sign in again when the station is back online.'; refused in ~6s: 'Station is offline. Sign-in is unavailable until the station app is running.' |
 | P2 | Network drop fires the Last Will; reconnect republishes online presence | PASS | LWT offline observed; pill during outage: 'Reconnecting' |
 | P3 | Workflows still work after the reconnect (fresh session) | PASS |  |

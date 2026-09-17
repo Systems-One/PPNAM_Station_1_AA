@@ -1,7 +1,7 @@
 {
  "campaign": "login",
- "ranAt": "2026-08-25T15:08:39Z",
- "durationS": 292.6,
+ "ranAt": "2026-09-17T16:43:07Z",
+ "durationS": 484.7,
  "results": [
   {
    "id": "L1",
@@ -106,6 +106,29 @@
    "shots": [
     "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\L10_logout.png"
    ]
+  },
+  {
+   "id": "L11",
+   "description": "Login dropdown lists the station's operators; picking one fills the username",
+   "verdict": "PASS",
+   "detail": "",
+   "notes": [
+    "station served 4 operators",
+    "picked 'op.off' from the dropdown"
+   ],
+   "shots": [
+    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\L11_dropdown.png"
+   ]
+  },
+  {
+   "id": "L12",
+   "description": "Inactivity auto sign-out returns to login with a reason",
+   "verdict": "PASS",
+   "detail": "",
+   "notes": [
+    "signed out after ~66s: 'Signed out after 1 minutes of inactivity.'"
+   ],
+   "shots": []
   }
  ]
 }

@@ -1,7 +1,7 @@
 {
  "campaign": "offload",
- "ranAt": "2026-08-25T15:21:34Z",
- "durationS": 697.0,
+ "ranAt": "2026-09-17T16:57:12Z",
+ "durationS": 751.7,
  "results": [
   {
    "id": "O1",
@@ -91,10 +91,11 @@
   },
   {
    "id": "O10",
-   "description": "Done -> Complete closes the document; its pallets stop resolving",
+   "description": "Done -> Complete closes the document and returns home; its pallets stop resolving",
    "verdict": "PASS",
    "detail": "",
    "notes": [
+    "returned to home after Complete",
     "post-close scan status: 'Document unknown.'"
    ],
    "shots": [
@@ -107,8 +108,8 @@
    "verdict": "PASS",
    "detail": "",
    "notes": [
-    "Short: 'ST-000077 closed \u00e2\u20ac\u201d Short'",
-    "Over: 'ST-000077 closed \u00e2\u20ac\u201d Over'"
+    "Short: returned home",
+    "Over: returned home"
    ],
    "shots": []
   },
@@ -129,6 +130,16 @@
    "detail": "",
    "notes": [],
    "shots": []
+  },
+  {
+   "id": "O14",
+   "description": "RFID and barcode fields ignore typing; only scans fill them",
+   "verdict": "PASS",
+   "detail": "",
+   "notes": [],
+   "shots": [
+    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O14_scan_only.png"
+   ]
   }
  ]
 }
