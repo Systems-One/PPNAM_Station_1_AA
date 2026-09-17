@@ -2,9 +2,9 @@
 
 | Item | Value |
 |---|---|
-| Contract version | 3.1.0 |
+| Contract version | 3.2.0 |
 | Status | Normative Station 1 scanner contract |
-| Last updated | 2026-08-25 |
+| Last updated | 2026-09-17 |
 | Target client | PPNAM Station 1 Android handheld scanners (any number; no fixed roles) |
 | Topic structure | Fleet-wide namespaced structure per `C:\Dev\Clients\PPNAM\MQTT_TOPIC_STRUCTURE.md` |
 | Authentication schema | `"4.1"` (shared Station 2 authority) |
@@ -123,6 +123,7 @@ Request/response pairs, on the namespaced topics of Section 1:
 | `scram_start_requested` | `scram_challenge` | Start password login (or a Manager/Admin scoped authorization). |
 | `scram_proof_requested` | `scram_proof_result` | Prove password knowledge; receive the operator session. |
 | `login_requested` | `operator_context` | Badge login. |
+| `operator_list_requested` | `operator_list` | Login-screen operator directory (3.2.0). |
 | `reader_logout_requested` | `operator_context` | Close this device's session. |
 
 Envelope and routing failures are published to
@@ -201,7 +202,7 @@ treats `nextAction` as authorization.
 Stable `nextAction` values in 3.0.0: `submit_scram_proof`, `login`, `start_scram`,
 `restart_scram`, `retry`, and `workflow_selection` (an accepted login: proceed to the
 `allowedTabs`-gated workflow selection; replaces 2.x `active_receiving_sessions`, which
-retires with receiving sessions). `submit_scoped_action` is reserved with Section 4.5.
+retires with receiving sessions). `submit_scoped_action` is reserved with Section 4.6.
 Scanner behavior is driven by `nextAction`, never by parsing free-text `reason`.
 
 ### 4.3 SCRAM-SHA-256 password login
@@ -327,7 +328,57 @@ An accepted `operator_context` logout response has `operatorSessionId: ""`,
 that exact device. A replay returns the stored already-closed context without closing the
 session twice.
 
-### 4.5 Manager/Admin scoped authorization (reserved)
+### 4.5 Operator directory (added in 3.2.0)
+
+The login screen offers a dropdown of operator usernames so an operator picks a name and
+types only the password. The scanner asks for the directory whenever it (re)connects to
+the broker while on the login screen, on
+`PPNAM/station_1/{deviceId}/req/operator_list_requested` with the plain pre-login
+envelope and no additional fields:
+
+```json
+{
+  "messageId": "operator-list-001",
+  "schemaVersion": "4.1",
+  "deviceId": "scanner_5c64df8d86a8",
+  "timestampUtc": "2026-09-17T06:00:00.000000Z"
+}
+```
+
+The station answers on `res/operator_list`:
+
+```json
+{
+  "messageId": "response-operator-list-001",
+  "inResponseToMessageId": "operator-list-001",
+  "schemaVersion": "4.1",
+  "deviceId": "scanner_5c64df8d86a8",
+  "timestampUtc": "2026-09-17T06:00:00.120000Z",
+  "accepted": true,
+  "reason": "Operator list.",
+  "nextAction": "login",
+  "operators": [
+    { "username": "jsmith", "displayName": "J. Smith" }
+  ]
+}
+```
+
+Rules:
+
+- `operators` lists **active password (SCRAM) operators** only, sorted by `displayName`.
+  Each entry carries exactly `username` and `displayName`. Roles, permissions,
+  `allowedTabs`, badge tags, and secrets MUST NOT appear — the directory is display-only
+  and confers nothing; every login is still authenticated by §4.3 / §4.4.
+- No `operatorSessionId` is required. Replay follows §4.7 (an identical replay returns the
+  stored list).
+- The scanner caches the last accepted list on the device so the dropdown is populated
+  before the station answers (or when it never does). Typing a username that is not in the
+  list remains valid.
+- A station that has not implemented this request rejects it with
+  `authentication_request_unsupported` on `res/request_rejected` (§4.1); the scanner then
+  keeps its cached list, or an empty dropdown, and falls back to typed usernames.
+
+### 4.6 Manager/Admin scoped authorization (reserved)
 
 The schema 4.1 SCRAM exchange also supports `purpose: "manager_action"` with
 `actionTarget`/`managerAction`, returning a one-use, 60-second, device/target/action-bound
@@ -337,7 +388,7 @@ a scoped token** — the stripped workflows in Sections 5-6 are Operator actions
 mechanism is reserved for future privileged scanner actions; until one is defined,
 scanners MUST NOT expose a Manager/Admin scanner flow.
 
-### 4.6 Replay and idempotency (authentication)
+### 4.7 Replay and idempotency (authentication)
 
 Station 1 stores `(messageId, requestType, deviceId)`, the request-body hash, correlation
 metadata, response route, and a replay-safe serialized result in
@@ -701,6 +752,10 @@ MQTT scope.
 What each side must change to meet 3.0.0. Neither side should treat this contract as
 describing current shipped behavior until these land:
 
+*(3.2.0, 2026-09-17)* `operator_list_requested` is implemented on the Android scanner and
+the simulator; **the Windows station handler is pending** — until it ships, scanners receive
+`authentication_request_unsupported` and fall back to typed usernames.
+
 **Station 1 Windows backend:**
 
 1. Authentication topic routing accepts only the retired four-segment
@@ -760,6 +815,8 @@ SCRAM verifier keys, broker/SAP/SQL secrets, cookies, and credentials.
 - Schema 4.1 suite unchanged: SCRAM start/proof success plus invalid, expired, used,
   replayed, and changed-body cases; plaintext credential rejection; badge login;
   replay-safe logout; secret redaction.
+- Operator directory request (§4.5): accepted list carries only `username`/`displayName`;
+  an unsupported station rejects it and the scanner falls back to typed usernames.
 - Derived device ids accepted opaquely; retired fixed ids rejected only where an enrolment
   list is configured and does not include them.
 - `allowedTabs` gating: scanner enables exactly the listed workflows; station rejects a
@@ -785,6 +842,7 @@ SCRAM verifier keys, broker/SAP/SQL secrets, cookies, and credentials.
 
 | Version | Date | Change |
 |---|---|---|
+| `3.2.0` | 2026-09-17 | §4.5 operator directory (`operator_list_requested` → `operator_list`) for the login dropdown: display-only usernames and display names, cached on the scanner, with a typed-username fallback when the station does not implement it. |
 | `3.1.0` | 2026-08-25 | Document-aware Offload per the agreed scanner flow: every matched tag+barcode scan resolves the pallet's open purchase order / stock transfer and returns its reference and pallet progress in the scan result (Section 6.1) — no scanner-side document selection or locking; the scanner repeats `documentType`/`documentNumber` on that pallet's confirm and on completion; `palletsScanned`/`palletsExpected` on document objects and accepted confirms; "Are you done?" after each accepted confirm; new `offload_complete` → `offload_complete_result` closing the looked-up document as `short`/`complete`/`over` (Section 6.4); new `DOCUMENT_REQUIRED`/`DOCUMENT_UNKNOWN`/`DOCUMENT_MISMATCH` error codes. |
 | `3.0.0` | 2026-08-25 | Stripped-down scanner contract: fleet-wide namespaced topics and base-node presence/LWT; derived unique device ids; fixed scanner roles removed in favor of login-driven `allowedTabs` (`tag_assignment`, `offload`) enforced on the scanner; new `tag_scan` and two-step `offload_scan`/`offload_confirm` workflows with backend prefill; 2.x receiving message families, broadcasts, and envelope machinery retired; SCRAM proof response confirmed as `scram_proof_result`. |
 | `2.3.0` | 2026-08-25 | Android handoff release; made Station 2 schema 4.1 the shared login/session authority, added exact Android subscriptions/state/persistence rules, exact SCRAM derivation and validation behavior, corrected implemented authentication error names, documented Station 1 capability cutover status, and clarified `sapPostStatus: "Pending"`. |

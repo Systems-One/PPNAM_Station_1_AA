@@ -1,4 +1,4 @@
-"""Business world for the Station 1 backend simulator — contract v3.1.0 §3-7.
+"""Business world for the Station 1 backend simulator — contract v3.2.0 §3-7.
 
 Pure logic: dict in → (response_suffix, dict) out. The MQTT shell owns topics,
 QoS, and presence. Deterministic seed data (documented in tools/tests/test_world.py)
@@ -23,6 +23,7 @@ AUTH_RESPONSE_SUFFIX = {
     "scram_proof_requested": "scram_proof_result",
     "login_requested": "operator_context",
     "reader_logout_requested": "operator_context",
+    "operator_list_requested": "operator_list",
 }
 
 WORKFLOW_TAB = {
@@ -188,6 +189,7 @@ class World:
             "scram_start_requested": self._auth_scram_start,
             "scram_proof_requested": self._auth_scram_proof,
             "login_requested": self._auth_badge_login,
+            "operator_list_requested": self._auth_operator_list,
             "reader_logout_requested": self._auth_logout,
         }[req.request_type]
         payload = handler(req)
@@ -302,6 +304,18 @@ class World:
             req, accepted=True, reason="Badge accepted.",
             next_action="workflow_selection", session_id=session.session_id,
             extra=self._operator_extra(operator, session),
+        )
+
+    def _auth_operator_list(self, req: ParsedRequest) -> dict:
+        """§4.5 (3.2.0): the login-screen directory. Display-only — usernames and
+        display names of active password operators, nothing about permissions."""
+        operators = [
+            {"username": op.username, "displayName": op.display_name}
+            for op in OPERATORS
+        ]
+        return self._auth_response(
+            req, accepted=True, reason="Operator list.",
+            next_action="login", extra={"operators": operators},
         )
 
     def _auth_logout(self, req: ParsedRequest) -> dict:

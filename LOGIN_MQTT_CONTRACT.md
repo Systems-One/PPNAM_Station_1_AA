@@ -29,3 +29,5 @@ What changed for this app in 3.0.0 (all implemented as of 2026-08-25):
   pallet's `offload_confirm` (whose accepted result returns post-commit progress) and, via
   the "Are you done?" prompt, on `offload_complete` with `status: short/complete/over` to
   close the document (§6.4).
+- *(3.2.0)* `operator_list_requested` → `operator_list` supplies the login-screen user
+  dropdown (§4.5); display-only, cached on the scanner, typed usernames still valid.

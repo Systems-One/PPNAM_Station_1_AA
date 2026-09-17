@@ -182,6 +182,26 @@ def test_unknown_badge_rejected(world, clock):
     assert result["nextAction"] == "login"
 
 
+def test_operator_list_returns_password_operators(world, clock):
+    suffix, result = auth_req(world, clock, "operator_list_requested", "oplist-1")
+    assert suffix == "operator_list"
+    assert result["accepted"]
+    assert result["nextAction"] == "login"
+    names = {o["username"]: o["displayName"] for o in result["operators"]}
+    assert names == {
+        "op.both": "Bongi Both", "op.tag": "Thandi Tag",
+        "op.off": "Owen Offload", "op.none": "Nomsa None",
+    }
+    # display-only: no permissions or badge material leak into the directory
+    assert all(set(o) == {"username", "displayName"} for o in result["operators"])
+
+
+def test_operator_list_replay_is_idempotent(world, clock):
+    _, first = auth_req(world, clock, "operator_list_requested", "oplist-2")
+    _, again = auth_req(world, clock, "operator_list_requested", "oplist-2")
+    assert again == first
+
+
 def test_logout_closes_session(world, clock):
     session = login(world, clock)["operatorSessionId"]
     suffix, result = auth_req(world, clock, "reader_logout_requested", "logout-1",
