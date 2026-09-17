@@ -85,6 +85,9 @@
     <string name="label_version">Version</string>
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
+    <string name="section_session_policy">Session</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out after (minutes, 0 = never)</string>
+    <string name="error_auto_logout_minutes">Enter 0–1440</string>
 
     <string name="station_offline_title">MAIN STATION OFFLINE</string>
     <string name="station_offline_message">Please wait for the main station to reconnect...</string>
