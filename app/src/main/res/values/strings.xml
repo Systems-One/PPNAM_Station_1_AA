@@ -24,8 +24,8 @@
     <!-- Offload -->
     <string name="section_scan">Scan</string>
     <string name="section_pallet_values">Pallet Values</string>
-    <string name="hint_tag_id">RFID Tag ID</string>
-    <string name="hint_barcode">Barcode</string>
+    <string name="hint_tag_id">Scan RFID tag</string>
+    <string name="hint_barcode">Scan barcode</string>
     <string name="hint_bag_weight">Bag Weight (kg)</string>
     <string name="hint_bag_count">Number of Bags</string>
     <string name="hint_batch_ref">Batch Reference</string>

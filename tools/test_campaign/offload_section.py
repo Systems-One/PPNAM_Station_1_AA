@@ -249,6 +249,25 @@ def main():
             expect(field_text("etTag") == "TAG-PAL-001", f"tag lost: {field_text('etTag')!r}")
             expect(field_text("etBarcode") == "BC-001", f"barcode lost: {field_text('etBarcode')!r}")
 
+        # ------------------------------------------------------------ O14
+        with c.case("O14", "RFID and barcode fields ignore typing; only scans fill them") as case:
+            fresh_offload(sim)
+            d.tap(id="etTag")
+            d.text("TYPED")
+            d.tap(id="etBarcode")
+            d.text("TYPED")
+            tag = d.find(id="etTag", retries=2)
+            bc = d.find(id="etBarcode", retries=2)
+            expect((tag.text or "").strip() in ("", "Scan RFID tag"), f"typing reached etTag: {tag.text!r}")
+            expect((bc.text or "").strip() in ("", "Scan barcode"), f"typing reached etBarcode: {bc.text!r}")
+            btn = d.find(id="btnMatchPallet")
+            expect(btn is not None and not btn.enabled, "Match Pallet enabled without scans")
+            d.scan_rfid("TAG-PAL-001")
+            d.scan_barcode("BC-001")
+            btn = d.find(id="btnMatchPallet", retries=3)
+            expect(btn is not None and btn.enabled, "scans did not enable Match Pallet")
+            case.shot(d.screenshot("O14_scan_only"))
+
     return c.finish()
 
 
