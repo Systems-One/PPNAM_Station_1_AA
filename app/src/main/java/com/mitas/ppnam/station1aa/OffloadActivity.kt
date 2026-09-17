@@ -29,7 +29,8 @@ import org.json.JSONObject
  *     re-validates the pair at confirm time, so no client-side pairing state must survive
  *     between the two steps.
  *  3. After each accepted confirm: "Are you done?" — Done closes the looked-up document as
- *     Short / Complete / Over via `offload_complete`; Next Pallet just keeps scanning.
+ *     Short / Complete / Over via `offload_complete` and returns to the home screen; Next
+ *     Pallet just keeps scanning.
  *
  * Value-validation rejections (INVALID_BAG_WEIGHT / INVALID_BAG_COUNT /
  * BATCH_REFERENCE_REQUIRED) keep the operator on the edit step; any other rejection returns
@@ -354,10 +355,14 @@ class OffloadActivity : AppCompatActivity() {
             result
                 .onSuccess { json ->
                     if (json.optBoolean("accepted", false)) {
-                        showScanStatus(
+                        // §6.4 accepted close: the document is done, so the Offload screen is done.
+                        // The toast survives the finish so the operator still sees the confirmation.
+                        android.widget.Toast.makeText(
+                            this,
                             getString(R.string.msg_document_closed, document.documentNumber, statusLabel),
-                            R.color.success,
-                        )
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                        finishBackward()
                     } else {
                         if (handleSessionRejection(json)) return@request
                         showScanStatus(stationReason(json), R.color.danger)

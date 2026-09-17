@@ -174,7 +174,7 @@ def main():
             d.tap(text="Next Pallet")
 
         # ------------------------------------------------------------ O10
-        with c.case("O10", "Done -> Complete closes the document; its pallets stop resolving") as case:
+        with c.case("O10", "Done -> Complete closes the document and returns home; its pallets stop resolving") as case:
             fresh_offload(sim)
             base = len(sim.events())
             scan_pair("TAG-PAL-001", "BC-001")
@@ -185,13 +185,16 @@ def main():
             expect(d.find(text="Close PO-000123 asâ€¦", retries=6) is not None, "no close prompt")
             case.shot(d.screenshot("O10_close_prompt"))
             d.tap(text="Complete")
-            shown = wait_text("tvScanStatus", "closed")
-            expect("PO-000123" in shown and "Complete" in shown, f"status {shown!r}")
+            expect(d.find(id="tileOffload", retries=10) is not None,
+                   "accepted close did not return to the home screen")
+            case.note("returned to home after Complete")
             done = sim.wait_for(
                 lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_complete"), since=base)
             expect(done and done["payload"].get("status") == "complete",
                    f"completion payload {done and done['payload']}")
             # pallets of the closed document no longer resolve
+            d.tap(id="tileOffload")
+            expect(d.find(id="etTag", retries=6) is not None, "Offload did not reopen")
             scan_pair("TAG-PAL-002", "BC-002")
             shown = wait_text("tvScanStatus", "document")
             expect("document" in shown.lower(), f"status {shown!r}")
@@ -209,14 +212,14 @@ def main():
                 d.tap(text="Done")
                 expect(d.find(text="Close ST-000077 asâ€¦", retries=6) is not None, "no close prompt")
                 d.tap(text=status_label)
-                shown = wait_text("tvScanStatus", "closed")
-                expect("ST-000077" in shown, f"status {shown!r}")
+                expect(d.find(id="tileOffload", retries=10) is not None,
+                       f"{status_label}: did not return home")
                 done = sim.wait_for(
                     lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_complete"),
                     since=base)
                 expect(done and done["payload"].get("status") == wire,
                        f"completion payload {done and done['payload']}")
-                case.note(f"{status_label}: {shown!r}")
+                case.note(f"{status_label}: returned home")
 
         # ------------------------------------------------------------ O12
         with c.case("O12", "Failed completion re-offers the close prompt; retry closes") as case:
@@ -233,8 +236,8 @@ def main():
             expect(reprompt is not None, "close prompt not re-offered after failure")
             case.shot(d.screenshot("O12_reprompt"))
             d.tap(text="Complete")
-            shown = wait_text("tvScanStatus", "closed")
-            expect("ST-000077" in shown, f"status {shown!r}")
+            expect(d.find(id="tileOffload", retries=10) is not None,
+                   "retry close did not return to the home screen")
 
         # ------------------------------------------------------------ O13
         with c.case("O13", "Back to scan from the edit step keeps the scanned pair") as case:
