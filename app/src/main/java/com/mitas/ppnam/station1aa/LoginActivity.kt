@@ -22,6 +22,8 @@ class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var authClient: AuthClient
+    private lateinit var directory: OperatorDirectory
+    private var operators: List<OperatorEntry> = emptyList()
 
     /** Blocks re-entry for the whole logging-in -> navigated span, exactly like Station 2's
      *  LoginViewModel: a repeat badge read arriving after success but before navigation must not
@@ -40,6 +42,11 @@ class LoginActivity : AppCompatActivity() {
     companion object {
         /** Why the operator landed here without asking to (spec §2-§3); shown as the error text. */
         const val EXTRA_SIGNED_OUT_REASON = "signed_out_reason"
+    }
+
+    /** Refresh the directory each time the broker link comes up (spec §4). */
+    private val connectionListener: (Boolean) -> Unit = { connected ->
+        if (connected) directory.refresh { list -> runOnUiThread { showOperators(list) } }
     }
 
     private val badgeReceiver = object : BroadcastReceiver() {
@@ -66,7 +73,10 @@ class LoginActivity : AppCompatActivity() {
         forceLightStatusBarIcons()
 
         authClient = AuthClient(this)
+        directory = OperatorDirectory(this)
+        showOperators(directory.cached())
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
+        MqttManager.getInstance(this).addConnectionListener(connectionListener)
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
         binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
@@ -163,6 +173,25 @@ class LoginActivity : AppCompatActivity() {
         if (inFlight) binding.tvLoginError.visibility = View.GONE
     }
 
+    /**
+     * Dropdown rows read "username — Display Name"; username first so the adapter's prefix
+     * filter narrows on what the operator types. Picking a row leaves only the username,
+     * which is what SCRAM authenticates. Typing a name that is not listed still works.
+     */
+    private fun showOperators(list: List<OperatorEntry>) {
+        operators = list.sortedBy { it.displayName.lowercase() }
+        val labels = operators.map { "${it.username} — ${it.displayName}" }
+        binding.etUsername.setAdapter(
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+        )
+        binding.etUsername.setOnItemClickListener { _, _, position, _ ->
+            val label = binding.etUsername.adapter.getItem(position) as String
+            val picked = operators.firstOrNull { "${it.username} — ${it.displayName}" == label }
+            binding.etUsername.setText(picked?.username ?: label, false)
+            binding.etPassword.requestFocus()
+        }
+    }
+
     private fun showError(message: String) {
         binding.tvLoginError.text = message
         binding.tvLoginError.visibility = View.VISIBLE
@@ -189,6 +218,7 @@ class LoginActivity : AppCompatActivity() {
         super.onDestroy()
         if (::authClient.isInitialized) {
             MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
+            MqttManager.getInstance(this).removeConnectionListener(connectionListener)
         }
     }
 }

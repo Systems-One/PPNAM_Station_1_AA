@@ -145,6 +145,25 @@ def main():
             expect(out is not None, "sim never saw reader_logout_requested")
             case.shot(d.screenshot("L10_logout"))
 
+        # ---------------------------------------------------------- L11
+        with c.case("L11", "Login dropdown lists the station's operators; picking one fills the username") as case:
+            to_login_screen(sim)
+            asked = sim.wait_for(
+                lambda e: e["dir"] == "in" and e["topic"].endswith("req/operator_list_requested"),
+                timeout=15)
+            expect(asked is not None, "app never requested the operator list")
+            d.tap(id="etUsername")
+            row = d.find(text="Thandi Tag", retries=6, partial=True)
+            expect(row is not None, "dropdown did not show the simulator's operators")
+            case.shot(d.screenshot("L11_dropdown"))
+            d.tap(xy=row.center)
+            field = d.find(id="etUsername", retries=3)
+            expect(field is not None and field.text.strip() == "op.tag", f"username field {field}")
+            d.type_into("etPassword", "tag123!")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnLogin")
+            expect(on_main(), "login via dropdown pick failed")
+
     return c.finish()
 
 
