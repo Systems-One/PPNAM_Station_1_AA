@@ -184,6 +184,11 @@ class LoginActivity : AppCompatActivity() {
         binding.etUsername.setAdapter(
             android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
         )
+        // An editable autocomplete does not open its list on tap, and an empty field filters
+        // to nothing — so with a threshold of 0 we open it ourselves when the field is touched.
+        binding.etUsername.setOnClickListener {
+            if (operators.isNotEmpty()) binding.etUsername.showDropDown()
+        }
         binding.etUsername.setOnItemClickListener { _, _, position, _ ->
             val label = binding.etUsername.adapter.getItem(position) as String
             val picked = operators.firstOrNull { "${it.username} — ${it.displayName}" == label }

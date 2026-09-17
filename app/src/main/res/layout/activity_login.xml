@@ -107,7 +107,7 @@
                             android:id="@+id/etUsername"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:completionThreshold="1"
+                            android:completionThreshold="0"
                             android:imeOptions="actionNext"
                             android:inputType="text"
                             android:maxLines="1"

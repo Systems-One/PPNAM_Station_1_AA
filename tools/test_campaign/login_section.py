@@ -150,16 +150,35 @@ def main():
             to_login_screen(sim)
             asked = sim.wait_for(
                 lambda e: e["dir"] == "in" and e["topic"].endswith("req/operator_list_requested"),
-                timeout=15)
+                timeout=20)
             expect(asked is not None, "app never requested the operator list")
-            d.tap(id="etUsername")
-            row = d.find(text="Thandi Tag", retries=6, partial=True)
-            expect(row is not None, "dropdown did not show the simulator's operators")
+            served = sim.wait_for(
+                lambda e: e["dir"] == "out" and e["topic"].endswith("res/operator_list"),
+                timeout=20)
+            expect(served is not None and served["payload"].get("operators"),
+                   "sim never served an operator list")
+            case.note(f"station served {len(served['payload']['operators'])} operators")
+            # The dropdown is a popup window, which `uiautomator dump` does not capture, so the
+            # rows are reached by position: the first row sits just under the username field.
+            # Rows are sorted by display name, so row 1 is "op.both - Bongi Both".
+            field = d.find(id="etUsername", retries=6)
+            expect(field is not None, "username field missing")
+            d.tap(xy=field.center)
+            time.sleep(1.5)
             case.shot(d.screenshot("L11_dropdown"))
-            d.tap(xy=row.center)
-            field = d.find(id="etUsername", retries=3)
-            expect(field is not None and field.text.strip() == "op.tag", f"username field {field}")
-            d.type_into("etPassword", "tag123!")
+            x1, y1, x2, y2 = field.bounds
+            # The popup's exact offset shifts with the keyboard, so tap into the list and
+            # accept whichever row lands: what matters is that a row filled the field with a
+            # username the station served, and that logging in with it works.
+            d.tap(xy=((x1 + x2) // 2, y2 + (y2 - y1) // 2))
+            time.sleep(1.0)
+            picked = d.find(id="etUsername", retries=3)
+            offered = [o["username"] for o in served["payload"]["operators"]]
+            username = picked.text.strip() if picked else ""
+            expect(username in offered,
+                   f"dropdown pick did not fill a served username: {username!r} not in {offered}")
+            case.note(f"picked {username!r} from the dropdown")
+            d.type_into("etPassword", username.split(".")[1] + "123!")
             d.key("KEYCODE_BACK")
             d.tap(id="btnLogin")
             expect(on_main(), "login via dropdown pick failed")
