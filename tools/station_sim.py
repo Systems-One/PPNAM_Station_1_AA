@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 
 from simlib.envelope import validate_auth_request
+from simlib.presence import should_restore_station_presence
 from simlib.world import AUTH_RESPONSE_SUFFIX, WORKFLOW_TAB, World
 
 STATION_TOPIC = "PPNAM/station_1"
@@ -52,6 +53,11 @@ class StationSim:
     def __init__(self, args):
         self.world = World()
         self.lock = threading.Lock()
+        # The presence state this simulator intends to advertise. A stale Last Will from a
+        # previous run can clobber the retained value after we connect, so we watch our own
+        # station node and correct it back (see simlib.presence).
+        self.station_state = "online"
+        self.shutting_down = False
         self.events: list[dict] = []  # captured req/res traffic, seq-numbered
 
         self.client = mqtt.Client(
@@ -86,8 +92,9 @@ class StationSim:
 
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         print(f"[sim] connected: {reason_code}")
-        client.publish(STATION_TOPIC, "online", qos=2, retain=True)
+        client.publish(STATION_TOPIC, self.station_state, qos=2, retain=True)
         client.subscribe([
+            (STATION_TOPIC, 2),               # our own station presence (self-heal)
             (f"{STATION_TOPIC}/+", 2),        # scanner presence
             (f"{STATION_TOPIC}/+/req/+", 1),  # all scanner requests
             (CONTROL_CMD, 1),
@@ -107,6 +114,14 @@ class StationSim:
             return
 
         parts = topic.split("/")
+        if topic == STATION_TOPIC:  # our own retained presence
+            value = msg.payload.decode("utf-8", "replace")
+            if should_restore_station_presence(
+                topic, value, STATION_TOPIC, self.station_state, self.shutting_down
+            ):
+                print(f"[sim] station presence read {value!r}; republishing {self.station_state!r}")
+                self.client.publish(STATION_TOPIC, self.station_state, qos=2, retain=True)
+            return
         if len(parts) == 3:  # PPNAM/station_1/{deviceId}: scanner presence
             presence = msg.payload.decode("utf-8", "replace")
             self._record("presence", topic, presence)
@@ -204,6 +219,8 @@ class StationSim:
                 if state not in ("online", "offline"):
                     reply = {"ok": False, "error": "state must be online|offline"}
                 else:
+                    # Record the intent first so the self-heal does not undo it.
+                    self.station_state = state
                     self.client.publish(STATION_TOPIC, state, qos=2, retain=True)
                     reply = {"ok": True, "cmd": cmd, "state": state}
             elif cmd == "expire-sessions":
@@ -225,6 +242,7 @@ class StationSim:
 
     # ---------------------------------------------------------------- lifecycle
     def shutdown(self):
+        self.shutting_down = True
         self.client.publish(STATION_TOPIC, "offline", qos=2, retain=True)
         time.sleep(0.4)
         self.client.loop_stop()
@@ -245,7 +263,7 @@ def main():
 
     sim = StationSim(args)
     sim.connect()
-    print("[sim] Station 1 v3.1.0 simulator running. Ctrl+C to quit.")
+    print("[sim] Station 1 v3.2.0 simulator running. Ctrl+C to quit.")
 
     if args.headless:
         try:
@@ -265,6 +283,7 @@ def main():
             if line == "quit":
                 break
             elif line in ("offline", "online"):
+                sim.station_state = line
                 sim.client.publish(STATION_TOPIC, line, qos=2, retain=True)
             elif line == "state":
                 print(json.dumps(sim.world.state(), indent=2))
