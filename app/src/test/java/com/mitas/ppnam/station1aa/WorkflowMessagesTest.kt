@@ -62,6 +62,53 @@ class WorkflowMessagesTest {
     }
 
     @Test
+    fun `offloadComplete carries shortTagCount only when closing short`() {
+        val p = WorkflowMessages.offloadComplete(
+            "scanner_abc", "sess-1",
+            documentType = "purchase_order", documentNumber = "PO-000123",
+            status = OffloadStatus.SHORT, tagCount = 3,
+        )
+        assertEquals("short", p.getString("status"))
+        assertTrue("shortTagCount must be a JSON integer", p.get("shortTagCount") is Int)
+        assertEquals(3, p.getInt("shortTagCount"))
+        assertTrue("an over count must not ride along with a short close", !p.has("overTagCount"))
+    }
+
+    @Test
+    fun `offloadComplete carries overTagCount only when closing over`() {
+        val p = WorkflowMessages.offloadComplete(
+            "scanner_abc", "sess-1",
+            documentType = "purchase_order", documentNumber = "PO-000123",
+            status = OffloadStatus.OVER, tagCount = 2,
+        )
+        assertEquals("over", p.getString("status"))
+        assertEquals(2, p.getInt("overTagCount"))
+        assertTrue("a short count must not ride along with an over close", !p.has("shortTagCount"))
+    }
+
+    @Test
+    fun `offloadComplete carries no tag count when closing complete`() {
+        val p = WorkflowMessages.offloadComplete(
+            "scanner_abc", "sess-1",
+            documentType = "purchase_order", documentNumber = "PO-000123",
+            status = OffloadStatus.COMPLETE, tagCount = null,
+        )
+        assertTrue("a complete close declares no discrepancy",
+            !p.has("shortTagCount") && !p.has("overTagCount"))
+    }
+
+    @Test
+    fun `tag count accepts whole numbers of one or more`() {
+        assertEquals(1, OffloadInput.parseTagCount("1"))
+        assertEquals(12, OffloadInput.parseTagCount(" 12 "))
+        assertNull(OffloadInput.parseTagCount("0"))
+        assertNull(OffloadInput.parseTagCount("-2"))
+        assertNull(OffloadInput.parseTagCount("1.5"))
+        assertNull(OffloadInput.parseTagCount(""))
+        assertNull(OffloadInput.parseTagCount("three"))
+    }
+
+    @Test
     fun `offload status wire values match the contract`() {
         assertEquals("short", OffloadStatus.SHORT)
         assertEquals("complete", OffloadStatus.COMPLETE)

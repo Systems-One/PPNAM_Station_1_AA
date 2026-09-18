@@ -145,6 +145,85 @@ def main():
             expect(out is not None, "sim never saw reader_logout_requested")
             case.shot(d.screenshot("L10_logout"))
 
+        # ---------------------------------------------------------- L11
+        with c.case("L11", "Login dropdown lists the station's operators; picking one fills the username") as case:
+            to_login_screen(sim)
+            asked = sim.wait_for(
+                lambda e: e["dir"] == "in" and e["topic"].endswith("req/operator_list_requested"),
+                timeout=20)
+            expect(asked is not None, "app never requested the operator list")
+            served = sim.wait_for(
+                lambda e: e["dir"] == "out" and e["topic"].endswith("res/operator_list"),
+                timeout=20)
+            expect(served is not None and served["payload"].get("operators"),
+                   "sim never served an operator list")
+            case.note(f"station served {len(served['payload']['operators'])} operators")
+            # The dropdown is a popup window, which `uiautomator dump` does not capture, so the
+            # rows are reached by position: the first row sits just under the username field.
+            # Rows are sorted by display name, so row 1 is "op.both - Bongi Both".
+            field = d.find(id="etUsername", retries=6)
+            expect(field is not None, "username field missing")
+            d.tap(xy=field.center)
+            time.sleep(1.5)
+            case.shot(d.screenshot("L11_dropdown"))
+            x1, y1, x2, y2 = field.bounds
+            # The popup's exact offset shifts with the keyboard, so tap into the list and
+            # accept whichever row lands: what matters is that a row filled the field with a
+            # username the station served, and that logging in with it works.
+            d.tap(xy=((x1 + x2) // 2, y2 + (y2 - y1) // 2))
+            time.sleep(1.0)
+            picked = d.find(id="etUsername", retries=3)
+            offered = [o["username"] for o in served["payload"]["operators"]]
+            username = picked.text.strip() if picked else ""
+            expect(username in offered,
+                   f"dropdown pick did not fill a served username: {username!r} not in {offered}")
+            case.note(f"picked {username!r} from the dropdown")
+            d.type_into("etPassword", username.split(".")[1] + "123!")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnLogin")
+            expect(on_main(), "login via dropdown pick failed")
+
+        # ---------------------------------------------------------- L12
+        with c.case("L12", "Inactivity auto sign-out returns to login with a reason") as case:
+            # Set the timeout to 1 minute so this case stands alone, then restore 15.
+            d.relaunch(wait=4)
+            d.tap(id="btnSettings")
+            d.type_into("etPin", "079545")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnUnlock")
+            time.sleep(0.8)
+            d.scroll_to("etAutoLogout")
+            d.type_into("etAutoLogout", "1")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnSaveSettings")
+            time.sleep(3)
+            to_login_screen(sim)
+            scram_login("op.both", "both123!")
+            expect(on_main(), "login failed")
+            t0 = time.time()
+            # No touches from here on; uiautomator dumps are not user interaction.
+            back_on_login = False
+            while time.time() - t0 < 120:
+                if d.find(id="etUsername", retries=1) is not None:
+                    back_on_login = True
+                    break
+                time.sleep(5)
+            expect(back_on_login, "inactivity sign-out never happened within 120s")
+            err = d.find(id="tvLoginError", retries=5)
+            expect(err is not None and "inactivity" in err.text.lower(), f"reason {err}")
+            case.note(f"signed out after ~{int(time.time() - t0)}s: {err.text!r}")
+            # restore the default
+            d.tap(id="btnSettings")
+            d.type_into("etPin", "079545")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnUnlock")
+            time.sleep(0.8)
+            d.scroll_to("etAutoLogout")
+            d.type_into("etAutoLogout", "15")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnSaveSettings")
+            time.sleep(3)
+
     return c.finish()
 
 

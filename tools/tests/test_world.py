@@ -182,6 +182,26 @@ def test_unknown_badge_rejected(world, clock):
     assert result["nextAction"] == "login"
 
 
+def test_operator_list_returns_password_operators(world, clock):
+    suffix, result = auth_req(world, clock, "operator_list_requested", "oplist-1")
+    assert suffix == "operator_list"
+    assert result["accepted"]
+    assert result["nextAction"] == "login"
+    names = {o["username"]: o["displayName"] for o in result["operators"]}
+    assert names == {
+        "op.both": "Bongi Both", "op.tag": "Thandi Tag",
+        "op.off": "Owen Offload", "op.none": "Nomsa None",
+    }
+    # display-only: no permissions or badge material leak into the directory
+    assert all(set(o) == {"username", "displayName"} for o in result["operators"])
+
+
+def test_operator_list_replay_is_idempotent(world, clock):
+    _, first = auth_req(world, clock, "operator_list_requested", "oplist-2")
+    _, again = auth_req(world, clock, "operator_list_requested", "oplist-2")
+    assert again == first
+
+
 def test_logout_closes_session(world, clock):
     session = login(world, clock)["operatorSessionId"]
     suffix, result = auth_req(world, clock, "reader_logout_requested", "logout-1",
@@ -387,18 +407,55 @@ def test_complete_closes_document(world, clock):
 @pytest.mark.parametrize("status", ["short", "complete", "over"])
 def test_each_completion_status_accepted(world, clock, status):
     session = login(world, clock)["operatorSessionId"]
+    # §6.4 (3.3.0): short and over must declare how many tags they differ by.
+    count = {"short": {"shortTagCount": 2}, "over": {"overTagCount": 1}}.get(status, {})
     _, r = wf(world, "offload_complete", session,
-              documentType="stock_transfer", documentNumber="ST-000077", status=status)
+              documentType="stock_transfer", documentNumber="ST-000077", status=status, **count)
     assert r["accepted"]
     assert r["status"] == status
 
 
 def test_identical_completion_replay_is_idempotent(world, clock):
     session = login(world, clock)["operatorSessionId"]
-    args = dict(documentType="purchase_order", documentNumber="PO-000123", status="short")
+    args = dict(documentType="purchase_order", documentNumber="PO-000123", status="short",
+                shortTagCount=4)
     _, first = wf(world, "offload_complete", session, **args)
     _, replay = wf(world, "offload_complete", session, **args)
     assert replay["accepted"]
+
+
+def test_short_and_over_completions_carry_a_tag_count(world, clock):
+    session = login(world, clock)["operatorSessionId"]
+    _, r = wf(world, "offload_complete", session, documentType="stock_transfer",
+              documentNumber="ST-000077", status="short", shortTagCount=3)
+    assert r["accepted"], r
+    assert r["shortTagCount"] == 3
+    assert "overTagCount" not in r
+
+
+def test_completion_tag_count_is_validated(world, clock):
+    session = login(world, clock)["operatorSessionId"]
+    # missing entirely
+    _, r = wf(world, "offload_complete", session, documentType="stock_transfer",
+              documentNumber="ST-000077", status="short")
+    assert r["errorCode"] == "TAG_COUNT_REQUIRED"
+    # present but not a positive whole number
+    _, r = wf(world, "offload_complete", session, documentType="stock_transfer",
+              documentNumber="ST-000077", status="over", overTagCount=0)
+    assert r["errorCode"] == "INVALID_TAG_COUNT"
+    # a count sent under the wrong status names the wrong field, so it is invalid rather
+    # than merely missing
+    _, r = wf(world, "offload_complete", session, documentType="stock_transfer",
+              documentNumber="ST-000077", status="short", overTagCount=2)
+    assert r["errorCode"] == "INVALID_TAG_COUNT"
+
+
+def test_complete_rejects_a_tag_count(world, clock):
+    """A complete receipt declares no discrepancy, so a count is a contradiction."""
+    session = login(world, clock)["operatorSessionId"]
+    _, r = wf(world, "offload_complete", session, documentType="stock_transfer",
+              documentNumber="ST-000077", status="complete", shortTagCount=1)
+    assert r["errorCode"] == "INVALID_TAG_COUNT"
 
 
 def test_completion_validation(world, clock):

@@ -22,6 +22,8 @@ class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var authClient: AuthClient
+    private lateinit var directory: OperatorDirectory
+    private var operators: List<OperatorEntry> = emptyList()
 
     /** Blocks re-entry for the whole logging-in -> navigated span, exactly like Station 2's
      *  LoginViewModel: a repeat badge read arriving after success but before navigation must not
@@ -30,7 +32,21 @@ class LoginActivity : AppCompatActivity() {
     private var loggedIn = false
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
-        runOnUiThread { binding.connectionPill.setStatus(status) }
+        runOnUiThread {
+            binding.connectionPill.setStatus(status)
+            binding.tvStationOfflineBanner.visibility =
+                if (status == ConnectionStatus.STATION_OFFLINE) View.VISIBLE else View.GONE
+        }
+    }
+
+    companion object {
+        /** Why the operator landed here without asking to (spec §2-§3); shown as the error text. */
+        const val EXTRA_SIGNED_OUT_REASON = "signed_out_reason"
+    }
+
+    /** Refresh the directory each time the broker link comes up (spec §4). */
+    private val connectionListener: (Boolean) -> Unit = { connected ->
+        if (connected) directory.refresh { list -> runOnUiThread { showOperators(list) } }
     }
 
     private val badgeReceiver = object : BroadcastReceiver() {
@@ -57,7 +73,10 @@ class LoginActivity : AppCompatActivity() {
         forceLightStatusBarIcons()
 
         authClient = AuthClient(this)
+        directory = OperatorDirectory(this)
+        showOperators(directory.cached())
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
+        MqttManager.getInstance(this).addConnectionListener(connectionListener)
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
         binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
@@ -74,6 +93,9 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.btnLogin.applyPressScaleFeedback()
+
+        intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() }
+            ?.let { showError(it) }
 
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.
@@ -95,11 +117,21 @@ class LoginActivity : AppCompatActivity() {
         unregisterReceiver(badgeReceiver)
     }
 
+    /** Spec §2: with the station's presence offline no login can succeed — say so at once. */
+    private fun stationIsOffline(): Boolean {
+        val mqtt = MqttManager.getInstance(this)
+        return mqtt.isConnected() && !mqtt.isStationOnline
+    }
+
     private fun submitCredentials() {
         val username = binding.etUsername.text.toString().trim()
         val password = binding.etPassword.text.toString()
         if (username.isEmpty() || password.isEmpty()) {
             showError(getString(R.string.error_fill_all_fields))
+            return
+        }
+        if (stationIsOffline()) {
+            showError(getString(R.string.login_station_offline_banner))
             return
         }
         if (loginInFlight || loggedIn) return
@@ -110,6 +142,10 @@ class LoginActivity : AppCompatActivity() {
     private fun attemptBadgeLogin(badgeTag: String) {
         if (loginInFlight || loggedIn) return
         runOnUiThread {
+            if (stationIsOffline()) {
+                showError(getString(R.string.login_station_offline_banner))
+                return@runOnUiThread
+            }
             setLoggingIn(true)
             authClient.loginWithBadge(badgeTag) { result -> onLoginResult(result) }
         }
@@ -135,6 +171,30 @@ class LoginActivity : AppCompatActivity() {
         binding.btnLogin.text = if (inFlight) "" else getString(R.string.btn_log_in)
         binding.progressLogin.visibility = if (inFlight) View.VISIBLE else View.GONE
         if (inFlight) binding.tvLoginError.visibility = View.GONE
+    }
+
+    /**
+     * Dropdown rows read "username — Display Name"; username first so the adapter's prefix
+     * filter narrows on what the operator types. Picking a row leaves only the username,
+     * which is what SCRAM authenticates. Typing a name that is not listed still works.
+     */
+    private fun showOperators(list: List<OperatorEntry>) {
+        operators = list.sortedBy { it.displayName.lowercase() }
+        val labels = operators.map { "${it.username} — ${it.displayName}" }
+        binding.etUsername.setAdapter(
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+        )
+        // An editable autocomplete does not open its list on tap, and an empty field filters
+        // to nothing — so with a threshold of 0 we open it ourselves when the field is touched.
+        binding.etUsername.setOnClickListener {
+            if (operators.isNotEmpty()) binding.etUsername.showDropDown()
+        }
+        binding.etUsername.setOnItemClickListener { _, _, position, _ ->
+            val label = binding.etUsername.adapter.getItem(position) as String
+            val picked = operators.firstOrNull { "${it.username} — ${it.displayName}" == label }
+            binding.etUsername.setText(picked?.username ?: label, false)
+            binding.etPassword.requestFocus()
+        }
     }
 
     private fun showError(message: String) {
@@ -163,6 +223,7 @@ class LoginActivity : AppCompatActivity() {
         super.onDestroy()
         if (::authClient.isInitialized) {
             MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
+            MqttManager.getInstance(this).removeConnectionListener(connectionListener)
         }
     }
 }

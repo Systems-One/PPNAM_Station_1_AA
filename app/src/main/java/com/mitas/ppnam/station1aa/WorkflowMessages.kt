@@ -45,17 +45,31 @@ object WorkflowMessages {
         .put("bagCount", bagCount)
         .put("batchReference", batchReference)
 
-    /** §6.4: close the looked-up document with a Short/Complete/Over classification. */
+    /**
+     * §6.4 document closure. A short or over close also declares how many tags the receipt
+     * differs by, in the field matching its status — `shortTagCount` or `overTagCount`. A
+     * complete close declares no discrepancy and carries neither field, so the station never
+     * has to read a count against the wrong status.
+     */
     fun offloadComplete(
         deviceId: String,
         operatorSessionId: String,
         documentType: String,
         documentNumber: String,
         status: String,
+        tagCount: Int? = null,
     ): JSONObject = base(deviceId, operatorSessionId)
         .put("documentType", documentType)
         .put("documentNumber", documentNumber)
         .put("status", status)
+        .apply {
+            if (tagCount != null) {
+                when (status) {
+                    OffloadStatus.SHORT -> put("shortTagCount", tagCount)
+                    OffloadStatus.OVER -> put("overTagCount", tagCount)
+                }
+            }
+        }
 
     /** Prefill display: whole kilograms without the ".0" tail an operator would have to erase. */
     fun formatWeight(weight: Double): String =
@@ -128,6 +142,10 @@ object OffloadInput {
         text.trim().toDoubleOrNull()?.takeIf { it > 0.0 && it.isFinite() }
 
     fun parseCount(text: String): Int? =
+        text.trim().toIntOrNull()?.takeIf { it > 0 }
+
+    /** §6.4: how many tags a receipt is short or over by — a whole number, at least one. */
+    fun parseTagCount(text: String): Int? =
         text.trim().toIntOrNull()?.takeIf { it > 0 }
 
     fun parseBatch(text: String): String? =

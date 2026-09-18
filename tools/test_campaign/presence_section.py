@@ -21,6 +21,10 @@ DEVICE_ID = "scanner_5c64df8d86a8"
 
 def login_to_main(sim):
     sim.cmd("reset")
+    # Sign-in is refused while the station is offline, and an aborted earlier run can leave
+    # it that way, so every case starts from a station that is explicitly online.
+    sim.cmd("station", state="online")
+    time.sleep(1.5)
     d.relaunch(wait=4)
     expect(d.find(id="etUsername") is not None, "login screen did not appear")
     d.type_into("etUsername", "op.both")
@@ -47,22 +51,41 @@ def wait_pill(want: str, timeout=30) -> str:
 
 def main():
     with SimControl() as sim:
-        with c.case("P1", "Station offline shows the blocking overlay on Main; online clears it") as case:
+        with c.case("P1", "Station offline signs the operator out with a reason; login refuses while offline") as case:
             login_to_main(sim)
             sim.cmd("station", state="offline")
-            overlay = None
-            deadline = time.time() + 15
-            while time.time() < deadline:
-                overlay = d.find(id="layoutStationOffline", retries=1)
-                if overlay is not None:
-                    break
-                time.sleep(1)
-            expect(overlay is not None, "station-offline overlay never appeared")
-            case.shot(d.screenshot("P1_station_offline"))
-            sim.cmd("station", state="online")
-            expect(d.wait_gone("layoutStationOffline", timeout=15), "overlay did not clear")
+            expect(d.find(id="etUsername", retries=15) is not None,
+                   "station offline did not return to the login screen")
+            err = d.find(id="tvLoginError", retries=5)
+            expect(err is not None and "signed out" in err.text.lower(), f"reason text {err}")
+            case.note(f"reason: {err.text!r}")
+            banner = d.find(id="tvStationOfflineBanner", retries=5)
+            expect(banner is not None, "offline banner not shown on login")
+            case.shot(d.screenshot("P1_station_offline_login"))
+            # A login attempt while offline is refused locally rather than waiting out the
+            # 10s station timeout. The message is what distinguishes the two paths: a timeout
+            # would read "Station did not respond". (Wall-clock is not asserted — each
+            # uiautomator dump costs seconds, which would swamp the measurement.)
+            try:
+                d.type_into("etUsername", "op.both")
+                d.type_into("etPassword", "both123!")
+                d.key("KEYCODE_BACK")
+                t0 = time.time()
+                d.tap(id="btnLogin")
+                err = d.find(id="tvLoginError", retries=3)
+                text = err.text if err else ""
+                expect("offline" in text.lower() and "did not respond" not in text.lower(),
+                       f"offline login was not refused locally: {text!r}")
+                case.note(f"refused in ~{int(time.time() - t0)}s: {text!r}")
+            finally:
+                # Always hand the station back online, or every later case inherits the outage.
+                sim.cmd("station", state="online")
+            expect(d.wait_gone("tvStationOfflineBanner", timeout=15), "banner did not clear")
+            d.tap(id="btnLogin")
+            expect(d.find(id="tileTagAssignment", retries=8) is not None, "login after recovery failed")
 
         with c.case("P2", "Network drop fires the Last Will; reconnect republishes online presence") as case:
+            sim.cmd("station", state="online")  # independent of however P1 ended
             base = len(sim.events())
             d.shell("svc", "wifi", "disable")
             try:

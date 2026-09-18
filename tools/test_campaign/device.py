@@ -83,13 +83,17 @@ class Device:
         return [Node(e) for e in tree.iter("node")]
 
     def find(self, id: str | None = None, text: str | None = None,
-             desc: str | None = None, retries: int = 6, interval: float = 1.0):
-        """Finds a node by resource id suffix / exact text / content-desc, with retries."""
+             desc: str | None = None, retries: int = 6, interval: float = 1.0,
+             partial: bool = False):
+        """Finds a node by resource id suffix / text / content-desc, with retries.
+
+        `partial=True` matches a node whose text merely contains `text` — for rows whose
+        label carries punctuation adb's UI dump may transliterate (e.g. an em dash)."""
         for _ in range(retries):
             for node in self.ui():
                 if id and node.resource_id.endswith(f"id/{id}"):
                     return node
-                if text is not None and node.text == text:
+                if text is not None and (text in node.text if partial else node.text == text):
                     return node
                 if desc is not None and node.desc == desc:
                     return node

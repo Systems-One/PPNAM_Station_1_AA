@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_marginTop="4dp"
-        android:text="@string/status_label_short"
+        android:text="@string/btn_close_short_tags"
         android:textColor="@android:color/white"
         app:backgroundTint="@color/warning"
         app:cornerRadius="14dp" />
@@ -35,7 +35,7 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_marginTop="12dp"
-        android:text="@string/status_label_over"
+        android:text="@string/btn_close_over_tags"
         android:textColor="@android:color/white"
         app:backgroundTint="@color/danger"
         app:cornerRadius="14dp" />

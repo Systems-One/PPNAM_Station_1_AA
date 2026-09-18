@@ -49,6 +49,17 @@ def wait_text(node_id: str, want: str, timeout=12.0) -> str:
     return last
 
 
+def close_as(label: str, tag_count: int | None = None):
+    """Taps a close classification and, for Short Tags / Over Tags, answers the count prompt."""
+    d.tap(text=label)
+    if tag_count is None:
+        return
+    expect(d.find(id="etTagCount", retries=6) is not None, f"{label} did not ask for a tag count")
+    d.type_into("etTagCount", str(tag_count))
+    d.key("KEYCODE_BACK")
+    d.tap(text="Submit")
+
+
 def on_edit_step() -> bool:
     return d.find(id="etBagWeight", retries=6) is not None
 
@@ -174,7 +185,7 @@ def main():
             d.tap(text="Next Pallet")
 
         # ------------------------------------------------------------ O10
-        with c.case("O10", "Done -> Complete closes the document; its pallets stop resolving") as case:
+        with c.case("O10", "Done -> Complete closes the document and returns home; its pallets stop resolving") as case:
             fresh_offload(sim)
             base = len(sim.events())
             scan_pair("TAG-PAL-001", "BC-001")
@@ -184,14 +195,17 @@ def main():
             d.tap(text="Done")
             expect(d.find(text="Close PO-000123 asâ€¦", retries=6) is not None, "no close prompt")
             case.shot(d.screenshot("O10_close_prompt"))
-            d.tap(text="Complete")
-            shown = wait_text("tvScanStatus", "closed")
-            expect("PO-000123" in shown and "Complete" in shown, f"status {shown!r}")
+            close_as("Complete")
+            expect(d.find(id="tileOffload", retries=10) is not None,
+                   "accepted close did not return to the home screen")
+            case.note("returned to home after Complete")
             done = sim.wait_for(
                 lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_complete"), since=base)
             expect(done and done["payload"].get("status") == "complete",
                    f"completion payload {done and done['payload']}")
             # pallets of the closed document no longer resolve
+            d.tap(id="tileOffload")
+            expect(d.find(id="etTag", retries=6) is not None, "Offload did not reopen")
             scan_pair("TAG-PAL-002", "BC-002")
             shown = wait_text("tvScanStatus", "document")
             expect("document" in shown.lower(), f"status {shown!r}")
@@ -199,7 +213,7 @@ def main():
 
         # ------------------------------------------------------------ O11
         with c.case("O11", "Short and Over classifications are both accepted") as case:
-            for status_label, wire in (("Short", "short"), ("Over", "over")):
+            for status_label, wire, tags in (("Short Tags", "short", 3), ("Over Tags", "over", 2)):
                 fresh_offload(sim)
                 base = len(sim.events())
                 scan_pair("TAG-PAL-003", "BC-003")
@@ -208,15 +222,17 @@ def main():
                 expect(d.find(text="Pallet recorded", retries=10) is not None, "no done prompt")
                 d.tap(text="Done")
                 expect(d.find(text="Close ST-000077 asâ€¦", retries=6) is not None, "no close prompt")
-                d.tap(text=status_label)
-                shown = wait_text("tvScanStatus", "closed")
-                expect("ST-000077" in shown, f"status {shown!r}")
+                close_as(status_label, tags)
+                expect(d.find(id="tileOffload", retries=10) is not None,
+                       f"{status_label}: did not return home")
                 done = sim.wait_for(
                     lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_complete"),
                     since=base)
-                expect(done and done["payload"].get("status") == wire,
-                       f"completion payload {done and done['payload']}")
-                case.note(f"{status_label}: {shown!r}")
+                payload = done["payload"] if done else {}
+                count_field = "shortTagCount" if wire == "short" else "overTagCount"
+                expect(payload.get("status") == wire and payload.get(count_field) == tags,
+                       f"completion payload {payload}")
+                case.note(f"{status_label}: sent {count_field}={tags}, returned home")
 
         # ------------------------------------------------------------ O12
         with c.case("O12", "Failed completion re-offers the close prompt; retry closes") as case:
@@ -228,13 +244,13 @@ def main():
             sim.cmd("fail-next", kind="offload_complete", code="INTERNAL_ERROR")
             d.tap(text="Done")
             expect(d.find(text="Close ST-000077 asâ€¦", retries=6) is not None, "no close prompt")
-            d.tap(text="Complete")
+            close_as("Complete")
             reprompt = d.find(text="Close ST-000077 asâ€¦", retries=10)
             expect(reprompt is not None, "close prompt not re-offered after failure")
             case.shot(d.screenshot("O12_reprompt"))
-            d.tap(text="Complete")
-            shown = wait_text("tvScanStatus", "closed")
-            expect("ST-000077" in shown, f"status {shown!r}")
+            close_as("Complete")
+            expect(d.find(id="tileOffload", retries=10) is not None,
+                   "retry close did not return to the home screen")
 
         # ------------------------------------------------------------ O13
         with c.case("O13", "Back to scan from the edit step keeps the scanned pair") as case:
@@ -245,6 +261,62 @@ def main():
             expect(d.find(id="etBagWeight", retries=1) is None, "edit card still visible")
             expect(field_text("etTag") == "TAG-PAL-001", f"tag lost: {field_text('etTag')!r}")
             expect(field_text("etBarcode") == "BC-001", f"barcode lost: {field_text('etBarcode')!r}")
+
+        # ------------------------------------------------------------ O14
+        with c.case("O14", "RFID and barcode fields ignore typing; only scans fill them") as case:
+            fresh_offload(sim)
+            d.tap(id="etTag")
+            d.text("TYPED")
+            d.tap(id="etBarcode")
+            d.text("TYPED")
+            tag = d.find(id="etTag", retries=2)
+            bc = d.find(id="etBarcode", retries=2)
+            expect((tag.text or "").strip() in ("", "Scan RFID tag"), f"typing reached etTag: {tag.text!r}")
+            expect((bc.text or "").strip() in ("", "Scan barcode"), f"typing reached etBarcode: {bc.text!r}")
+            btn = d.find(id="btnMatchPallet")
+            expect(btn is not None and not btn.enabled, "Match Pallet enabled without scans")
+            d.scan_rfid("TAG-PAL-001")
+            d.scan_barcode("BC-001")
+            btn = d.find(id="btnMatchPallet", retries=3)
+            expect(btn is not None and btn.enabled, "scans did not enable Match Pallet")
+            case.shot(d.screenshot("O14_scan_only"))
+
+        # ------------------------------------------------------------ O15
+        with c.case("O15", "Short Tags asks how many; 0 is refused and Cancel returns to the classifications") as case:
+            fresh_offload(sim)
+            base = len(sim.events())
+            scan_pair("TAG-PAL-003", "BC-003")
+            expect(on_edit_step(), "edit step did not appear")
+            tap_btn("btnConfirmOffload")
+            expect(d.find(text="Pallet recorded", retries=10) is not None, "no done prompt")
+            d.tap(text="Done")
+            expect(d.find(text="Short Tags", retries=6) is not None, "Short button not relabelled")
+            d.tap(text="Short Tags")
+            expect(d.find(id="etTagCount", retries=6) is not None, "no tag-count prompt")
+            case.shot(d.screenshot("O15_tag_count_prompt"))
+            # 0 is refused locally and nothing goes on the wire
+            d.type_into("etTagCount", "0")
+            d.key("KEYCODE_BACK")
+            d.tap(text="Submit")
+            err = d.find(id="tvTagCountError", retries=5)
+            expect(err is not None, "zero tag count was not refused")
+            case.note(f"refused zero: {err.text!r}")
+            expect(d.find(id="etTagCount", retries=2) is not None, "prompt closed on an invalid count")
+            sent = [e for e in sim.events(base) if e["dir"] == "in"
+                    and e["topic"].endswith("req/offload_complete")]
+            expect(not sent, f"an invalid count still reached the station: {sent}")
+            # Cancel goes back to the classifications rather than abandoning the close
+            d.tap(text="Cancel")
+            expect(d.find(text="Short Tags", retries=6) is not None,
+                   "Cancel did not return to the close classifications")
+            close_as("Short Tags", 5)
+            expect(d.find(id="tileOffload", retries=10) is not None, "did not return home")
+            done = sim.wait_for(
+                lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_complete"), since=base)
+            payload = done["payload"] if done else {}
+            expect(payload.get("status") == "short" and payload.get("shortTagCount") == 5,
+                   f"completion payload {payload}")
+            case.note("retry sent shortTagCount=5")
 
     return c.finish()
 

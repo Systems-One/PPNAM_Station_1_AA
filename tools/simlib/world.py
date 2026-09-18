@@ -1,4 +1,4 @@
-"""Business world for the Station 1 backend simulator — contract v3.1.0 §3-7.
+"""Business world for the Station 1 backend simulator — contract v3.2.0 §3-7.
 
 Pure logic: dict in → (response_suffix, dict) out. The MQTT shell owns topics,
 QoS, and presence. Deterministic seed data (documented in tools/tests/test_world.py)
@@ -23,6 +23,7 @@ AUTH_RESPONSE_SUFFIX = {
     "scram_proof_requested": "scram_proof_result",
     "login_requested": "operator_context",
     "reader_logout_requested": "operator_context",
+    "operator_list_requested": "operator_list",
 }
 
 WORKFLOW_TAB = {
@@ -188,6 +189,7 @@ class World:
             "scram_start_requested": self._auth_scram_start,
             "scram_proof_requested": self._auth_scram_proof,
             "login_requested": self._auth_badge_login,
+            "operator_list_requested": self._auth_operator_list,
             "reader_logout_requested": self._auth_logout,
         }[req.request_type]
         payload = handler(req)
@@ -304,6 +306,18 @@ class World:
             extra=self._operator_extra(operator, session),
         )
 
+    def _auth_operator_list(self, req: ParsedRequest) -> dict:
+        """§4.5 (3.2.0): the login-screen directory. Display-only — usernames and
+        display names of active password operators, nothing about permissions."""
+        operators = [
+            {"username": op.username, "displayName": op.display_name}
+            for op in OPERATORS
+        ]
+        return self._auth_response(
+            req, accepted=True, reason="Operator list.",
+            next_action="login", extra={"operators": operators},
+        )
+
     def _auth_logout(self, req: ParsedRequest) -> dict:
         session = self.sessions.get(req.payload.get("operatorSessionId") or "")
         if session is None or session.closed or session.device_id != req.device_id:
@@ -365,6 +379,8 @@ class World:
         "ACTION_NOT_ALLOWED": "This workflow is not permitted for the signed-in operator.",
         "INTERNAL_ERROR": "Unexpected station error.",
         "DATABASE_FAILED": "Station transaction did not commit.",
+        "TAG_COUNT_REQUIRED": "Say how many tags the receipt is short or over by.",
+        "INVALID_TAG_COUNT": "Tag count must be a whole number of 1 or more, matching the status.",
     }
 
     def _reason_for(self, code: str) -> str:
@@ -522,6 +538,24 @@ class World:
         if status not in ("short", "complete", "over"):
             return fail("INVALID_PAYLOAD")
 
+        # §6.4 (3.3.0): a short/over close declares how many tags the receipt differs by, in
+        # the field matching its status. A complete close declares no discrepancy, so any
+        # count is a contradiction rather than extra information.
+        count_field = {"short": "shortTagCount", "over": "overTagCount"}.get(status)
+        other_field = {"short": "overTagCount", "over": "shortTagCount"}.get(status)
+        if count_field is None:
+            if "shortTagCount" in payload or "overTagCount" in payload:
+                return fail("INVALID_TAG_COUNT")
+            tag_count = None
+        else:
+            if other_field in payload:
+                return fail("INVALID_TAG_COUNT")
+            if count_field not in payload:
+                return fail("TAG_COUNT_REQUIRED")
+            tag_count = payload.get(count_field)
+            if not isinstance(tag_count, int) or isinstance(tag_count, bool) or tag_count < 1:
+                return fail("INVALID_TAG_COUNT")
+
         stored = self.completions.get((doc_number, status))
         if stored is not None:
             return "offload_complete_result", dict(stored)
@@ -532,5 +566,7 @@ class World:
 
         document.open = False
         response = {**base, "accepted": True, "reason": "Receipt closed.", "errorCode": None}
+        if count_field is not None:
+            response[count_field] = tag_count
         self.completions[(doc_number, status)] = dict(response)
         return "offload_complete_result", response

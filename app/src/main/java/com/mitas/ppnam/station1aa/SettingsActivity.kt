@@ -9,7 +9,7 @@ import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station1aa.databinding.ActivitySettingsBinding
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : SessionActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
 
@@ -51,6 +51,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.swBrokerWebSocket.isChecked = current.useWebSocket
         binding.swBrokerTls.isChecked = current.useTls
         binding.etBrokerUsername.setText(current.username)
+        binding.etAutoLogout.setText(settingsRepository.autoLogoutMinutes().toString())
         // The password field stays empty: the stored credential is never echoed back into the UI.
         // A blank field on save means "keep the provisioned password" (see save below).
 
@@ -75,6 +76,14 @@ class SettingsActivity : AppCompatActivity() {
                 binding.etBrokerPort.error = "Invalid port (1–65535)"
                 return@setOnClickListener
             }
+
+            val autoLogoutMinutes = AutoLogout.parseMinutes(binding.etAutoLogout.text.toString())
+            if (autoLogoutMinutes == null) {
+                binding.etAutoLogout.error = getString(R.string.error_auto_logout_minutes)
+                return@setOnClickListener
+            }
+            settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
+            SessionGuard.applyTimeout()
 
             val typedPassword = binding.etBrokerPassword.text.toString()
             val newSettings = BrokerSettings(

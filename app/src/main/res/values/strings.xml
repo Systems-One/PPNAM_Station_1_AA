@@ -24,8 +24,8 @@
     <!-- Offload -->
     <string name="section_scan">Scan</string>
     <string name="section_pallet_values">Pallet Values</string>
-    <string name="hint_tag_id">RFID Tag ID</string>
-    <string name="hint_barcode">Barcode</string>
+    <string name="hint_tag_id">Scan RFID tag</string>
+    <string name="hint_barcode">Scan barcode</string>
     <string name="hint_bag_weight">Bag Weight (kg)</string>
     <string name="hint_bag_count">Number of Bags</string>
     <string name="hint_batch_ref">Batch Reference</string>
@@ -41,6 +41,14 @@
     <string name="btn_next_pallet">Next Pallet</string>
     <string name="dialog_close_title">Close %1$s as…</string>
     <string name="status_label_short">Short</string>
+    <string name="btn_close_short_tags">Short Tags</string>
+    <string name="btn_close_over_tags">Over Tags</string>
+    <string name="btn_submit">Submit</string>
+    <string name="hint_tag_count">Number of tags</string>
+    <string name="dialog_tag_count_short_title">How many tags short?</string>
+    <string name="dialog_tag_count_over_title">How many tags over?</string>
+    <string name="error_invalid_tag_count">Enter a whole number of tags, 1 or more</string>
+    <string name="msg_document_closed_tags">%1$s closed — %2$s (%3$d tags)</string>
     <string name="status_label_complete">Complete</string>
     <string name="status_label_over">Over</string>
     <string name="msg_document_closed">%1$s closed — %2$s</string>
@@ -85,7 +93,12 @@
     <string name="label_version">Version</string>
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
+    <string name="section_session_policy">Session</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out after (minutes, 0 = never)</string>
+    <string name="error_auto_logout_minutes">Enter 0–1440</string>
 
-    <string name="station_offline_title">MAIN STATION OFFLINE</string>
-    <string name="station_offline_message">Please wait for the main station to reconnect...</string>
+    <!-- Forced sign-out (spec §2, §3) -->
+    <string name="signed_out_station_offline">Station went offline — you were signed out. Sign in again when the station is back online.</string>
+    <string name="signed_out_inactivity">Signed out after %1$d minutes of inactivity.</string>
+    <string name="login_station_offline_banner">Station is offline. Sign-in is unavailable until the station app is running.</string>
 </resources>

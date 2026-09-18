@@ -144,6 +144,26 @@ def main():
             expect(pill_text == "Connected", f"connection pill {pill_text!r}")
             case.shot(d.screenshot("S8_after_save"))
 
+        with c.case("S9", "Auto sign-out minutes are validated and saved") as case:
+            open_settings()
+            enter_pin(PIN)
+            node = d.scroll_to("etAutoLogout")
+            expect(node is not None, "auto sign-out field not found")
+            expect(node.text.strip() == "15", f"default was {node.text!r}, expected 15")
+            d.type_into("etAutoLogout", "5000")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnSaveSettings")
+            expect(d.find(id="etAutoLogout", retries=2) is not None, "invalid value was accepted")
+            d.type_into("etAutoLogout", "1")
+            d.key("KEYCODE_BACK")
+            d.tap(id="btnSaveSettings")
+            time.sleep(3)
+            open_settings()
+            enter_pin(PIN)
+            node = d.scroll_to("etAutoLogout")
+            expect(node is not None and node.text.strip() == "1", f"saved value {node and node.text!r}")
+            case.note("auto sign-out set to 1 minute (restored to 15 by L12)")
+
     return c.finish()
 
 
