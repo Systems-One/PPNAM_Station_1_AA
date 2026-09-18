@@ -33,9 +33,12 @@ class TagAssignmentActivity : SessionActivity() {
     private val rfidReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
-                SessionGuard.touch()
                 val data = intent.getStringExtra("data")
-                if (!data.isNullOrEmpty()) onTagScanned(data)
+                if (!data.isNullOrEmpty()) {
+                    // See OffloadActivity: only a read this screen consumes counts as activity.
+                    SessionGuard.touch()
+                    onTagScanned(data)
+                }
             }
         }
     }

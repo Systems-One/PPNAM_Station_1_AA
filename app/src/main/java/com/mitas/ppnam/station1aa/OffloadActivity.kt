@@ -57,9 +57,13 @@ class OffloadActivity : SessionActivity() {
     private val rfidReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
-                SessionGuard.touch()
                 val data = intent.getStringExtra("data")
                 if (!data.isNullOrEmpty() && step == Step.SCAN) {
+                    // Only a read this screen actually consumes counts as operator activity:
+                    // the scanner action is an exported broadcast, so resetting the inactivity
+                    // deadline for every matching intent would let a bare broadcast hold a
+                    // session open indefinitely.
+                    SessionGuard.touch()
                     binding.etTag.setText(data)
                     updateMatchEnabled()
                 }
@@ -70,9 +74,9 @@ class OffloadActivity : SessionActivity() {
     private val barcodeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.scanner.broadcast") {
-                SessionGuard.touch()
                 val data = intent.getStringExtra("data")
                 if (!data.isNullOrEmpty() && step == Step.SCAN) {
+                    SessionGuard.touch()
                     binding.etBarcode.setText(data)
                     updateMatchEnabled()
                 }
