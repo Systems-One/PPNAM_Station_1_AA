@@ -379,6 +379,8 @@ class World:
         "ACTION_NOT_ALLOWED": "This workflow is not permitted for the signed-in operator.",
         "INTERNAL_ERROR": "Unexpected station error.",
         "DATABASE_FAILED": "Station transaction did not commit.",
+        "TAG_COUNT_REQUIRED": "Say how many tags the receipt is short or over by.",
+        "INVALID_TAG_COUNT": "Tag count must be a whole number of 1 or more, matching the status.",
     }
 
     def _reason_for(self, code: str) -> str:
@@ -536,6 +538,24 @@ class World:
         if status not in ("short", "complete", "over"):
             return fail("INVALID_PAYLOAD")
 
+        # §6.4 (3.3.0): a short/over close declares how many tags the receipt differs by, in
+        # the field matching its status. A complete close declares no discrepancy, so any
+        # count is a contradiction rather than extra information.
+        count_field = {"short": "shortTagCount", "over": "overTagCount"}.get(status)
+        other_field = {"short": "overTagCount", "over": "shortTagCount"}.get(status)
+        if count_field is None:
+            if "shortTagCount" in payload or "overTagCount" in payload:
+                return fail("INVALID_TAG_COUNT")
+            tag_count = None
+        else:
+            if other_field in payload:
+                return fail("INVALID_TAG_COUNT")
+            if count_field not in payload:
+                return fail("TAG_COUNT_REQUIRED")
+            tag_count = payload.get(count_field)
+            if not isinstance(tag_count, int) or isinstance(tag_count, bool) or tag_count < 1:
+                return fail("INVALID_TAG_COUNT")
+
         stored = self.completions.get((doc_number, status))
         if stored is not None:
             return "offload_complete_result", dict(stored)
@@ -546,5 +566,7 @@ class World:
 
         document.open = False
         response = {**base, "accepted": True, "reason": "Receipt closed.", "errorCode": None}
+        if count_field is not None:
+            response[count_field] = tag_count
         self.completions[(doc_number, status)] = dict(response)
         return "offload_complete_result", response

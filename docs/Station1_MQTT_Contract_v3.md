@@ -2,9 +2,9 @@
 
 | Item | Value |
 |---|---|
-| Contract version | 3.2.0 |
+| Contract version | 3.3.0 |
 | Status | Normative Station 1 scanner contract |
-| Last updated | 2026-09-17 |
+| Last updated | 2026-09-18 |
 | Target client | PPNAM Station 1 Android handheld scanners (any number; no fixed roles) |
 | Topic structure | Fleet-wide namespaced structure per `C:\Dev\Clients\PPNAM\MQTT_TOPIC_STRUCTURE.md` |
 | Authentication schema | `"4.1"` (shared Station 2 authority) |
@@ -623,11 +623,46 @@ Request on `PPNAM/station_1/{deviceId}/req/offload_complete`:
 
 `status` MUST be exactly one of the lowercase values:
 
-| Value | Meaning |
-|---|---|
-| `short` | Operator is done; fewer goods were received than expected. |
-| `complete` | Operator is done; the receipt matches expectations. |
-| `over` | Operator is done; more goods were received than expected. |
+| Value | Meaning | Tag count field |
+|---|---|---|
+| `short` | Operator is done; fewer goods were received than expected. | `shortTagCount`, required |
+| `complete` | Operator is done; the receipt matches expectations. | none; both fields absent |
+| `over` | Operator is done; more goods were received than expected. | `overTagCount`, required |
+
+#### Tag counts on a short or over close (added in 3.3.0)
+
+A short or over close also declares **how many tags the receipt differs by**. The operator
+picks Short Tags or Over Tags, is asked "How many tags short?" (or over), enters a whole
+number of 1 or more, and submits. The count rides on the same `offload_complete` in the
+field matching its status:
+
+```json
+{
+  "ts": "2026-09-18T09:20:00.000Z",
+  "deviceId": "scanner_5c64df8d86a8",
+  "operatorSessionId": "reader-session-id",
+  "documentType": "purchase_order",
+  "documentNumber": "PO-000123",
+  "status": "short",
+  "shortTagCount": 3
+}
+```
+
+Rules for the count:
+
+- It is a JSON integer of **1 or more**. The scanner refuses 0, negatives, decimals, and
+  blanks locally and never sends them.
+- The field MUST match the status: `shortTagCount` with `short`, `overTagCount` with
+  `over`. The station rejects a count sent under the other status with
+  `INVALID_TAG_COUNT`, and a short/over close with no count at all with
+  `TAG_COUNT_REQUIRED`.
+- A `complete` close carries **neither** field. A count alongside `complete` contradicts
+  the classification and is rejected with `INVALID_TAG_COUNT`.
+- The accepted result echoes the count back in the same field, so an idempotent replay
+  returns the originally recorded number.
+- The count is the operator's declaration of the discrepancy. What the station does with
+  it — reconciliation, SAP posting, discrepancy handling — is desktop authority and stays
+  out of MQTT scope.
 
 Response on `PPNAM/station_1/{deviceId}/res/offload_complete_result`:
 
@@ -642,12 +677,27 @@ Response on `PPNAM/station_1/{deviceId}/res/offload_complete_result`:
 }
 ```
 
+A short or over result echoes its count as well:
+
+```json
+{
+  "ts": "2026-09-18T09:20:00.080Z",
+  "deviceId": "scanner_5c64df8d86a8",
+  "status": "short",
+  "shortTagCount": 3,
+  "accepted": true,
+  "reason": "Receipt closed.",
+  "errorCode": null
+}
+```
+
 Rules:
 
 - The station MUST answer every `offload_complete` with an `offload_complete_result`
   echoing the same `status` (the scanner correlates on it). `accepted: false` carries a
   stable `errorCode` and a sanitized operator-readable `reason`.
-- An unknown or missing `status` is rejected with `INVALID_PAYLOAD`. Session and
+- An unknown or missing `status` is rejected with `INVALID_PAYLOAD`; a missing or
+  mismatched tag count with `TAG_COUNT_REQUIRED` / `INVALID_TAG_COUNT`. Session and
   permission failures use the standard codes (`AUTHENTICATION_REQUIRED`,
   `OPERATOR_SESSION_INVALID`, `ACTION_NOT_ALLOWED` — the completion belongs to the
   `offload` workflow permission).
@@ -707,6 +757,8 @@ Workflow error codes (uppercase), the complete 3.0.0 set:
 | `INVALID_BAG_WEIGHT` | Bag weight is not a positive number in the allowed range. |
 | `INVALID_BAG_COUNT` | Bag count is not a positive whole number in the allowed range. |
 | `BATCH_REFERENCE_REQUIRED` | Batch reference missing/invalid. |
+| `TAG_COUNT_REQUIRED` | A short or over completion arrived without its tag count (3.3.0). |
+| `INVALID_TAG_COUNT` | Tag count is not a whole number of 1 or more, is sent under the wrong status, or rides along with `complete` (3.3.0). |
 | `DATABASE_FAILED` | Station transaction did not commit; no success response exists. |
 | `INTERNAL_ERROR` | Sanitized unexpected station error. |
 
@@ -751,6 +803,10 @@ MQTT scope.
 
 What each side must change to meet 3.0.0. Neither side should treat this contract as
 describing current shipped behavior until these land:
+
+*(3.3.0, 2026-09-18)* Short/over completion tag counts are implemented on the Android
+scanner and the simulator; **the Windows station handler must accept and persist
+`shortTagCount`/`overTagCount`** and enforce the two new error codes.
 
 *(3.2.0, 2026-09-17)* `operator_list_requested` is implemented on the Android scanner and
 the simulator; **the Windows station handler is pending** — until it ships, scanners receive
@@ -817,6 +873,10 @@ SCRAM verifier keys, broker/SAP/SQL secrets, cookies, and credentials.
   replay-safe logout; secret redaction.
 - Operator directory request (§4.5): accepted list carries only `username`/`displayName`;
   an unsupported station rejects it and the scanner falls back to typed usernames.
+- Document completion tag counts (§6.4): short and over accepted with their count echoed;
+  missing count rejected `TAG_COUNT_REQUIRED`; count under the wrong status and a count
+  alongside `complete` rejected `INVALID_TAG_COUNT`; identical replay returns the recorded
+  count.
 - Derived device ids accepted opaquely; retired fixed ids rejected only where an enrolment
   list is configured and does not include them.
 - `allowedTabs` gating: scanner enables exactly the listed workflows; station rejects a
@@ -842,6 +902,7 @@ SCRAM verifier keys, broker/SAP/SQL secrets, cookies, and credentials.
 
 | Version | Date | Change |
 |---|---|---|
+| `3.3.0` | 2026-09-18 | §6.4 short/over closures declare how many tags the receipt differs by: required `shortTagCount`/`overTagCount` on `offload_complete`, echoed on the accepted result, with new `TAG_COUNT_REQUIRED` and `INVALID_TAG_COUNT` codes. A `complete` closure still carries no count. |
 | `3.2.0` | 2026-09-17 | §4.5 operator directory (`operator_list_requested` → `operator_list`) for the login dropdown: display-only usernames and display names, cached on the scanner, with a typed-username fallback when the station does not implement it. |
 | `3.1.0` | 2026-08-25 | Document-aware Offload per the agreed scanner flow: every matched tag+barcode scan resolves the pallet's open purchase order / stock transfer and returns its reference and pallet progress in the scan result (Section 6.1) — no scanner-side document selection or locking; the scanner repeats `documentType`/`documentNumber` on that pallet's confirm and on completion; `palletsScanned`/`palletsExpected` on document objects and accepted confirms; "Are you done?" after each accepted confirm; new `offload_complete` → `offload_complete_result` closing the looked-up document as `short`/`complete`/`over` (Section 6.4); new `DOCUMENT_REQUIRED`/`DOCUMENT_UNKNOWN`/`DOCUMENT_MISMATCH` error codes. |
 | `3.0.0` | 2026-08-25 | Stripped-down scanner contract: fleet-wide namespaced topics and base-node presence/LWT; derived unique device ids; fixed scanner roles removed in favor of login-driven `allowedTabs` (`tag_assignment`, `offload`) enforced on the scanner; new `tag_scan` and two-step `offload_scan`/`offload_confirm` workflows with backend prefill; 2.x receiving message families, broadcasts, and envelope machinery retired; SCRAM proof response confirmed as `scram_proof_result`. |

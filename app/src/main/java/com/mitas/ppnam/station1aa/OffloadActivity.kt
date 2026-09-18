@@ -29,8 +29,9 @@ import org.json.JSONObject
  *     re-validates the pair at confirm time, so no client-side pairing state must survive
  *     between the two steps.
  *  3. After each accepted confirm: "Are you done?" — Done closes the looked-up document as
- *     Short / Complete / Over via `offload_complete` and returns to the home screen; Next
- *     Pallet just keeps scanning.
+ *     Short Tags / Complete / Over Tags via `offload_complete` and returns to the home
+ *     screen; Next Pallet just keeps scanning. A short or over close asks how many tags the
+ *     receipt differs by and sends it as `shortTagCount`/`overTagCount` (§6.4).
  *
  * Value-validation rejections (INVALID_BAG_WEIGHT / INVALID_BAG_COUNT /
  * BATCH_REFERENCE_REQUIRED) keep the operator on the edit step; any other rejection returns
@@ -327,13 +328,70 @@ class OffloadActivity : SessionActivity() {
         for ((button, wireValue) in choices) {
             button.setOnClickListener {
                 dialog.dismiss()
-                sendCompletion(document, wireValue, button.text.toString())
+                val label = button.text.toString()
+                // Short and Over declare how many tags the receipt differs by; Complete
+                // declares no discrepancy and goes straight out.
+                if (wireValue == OffloadStatus.COMPLETE) {
+                    sendCompletion(document, wireValue, label, tagCount = null)
+                } else {
+                    showTagCountPrompt(document, wireValue, label)
+                }
             }
             button.applyPressScaleFeedback()
         }
     }
 
-    private fun sendCompletion(document: OffloadDocument, status: String, statusLabel: String) {
+    /**
+     * §6.4: how many tags short/over. Cancel returns to the classification choices rather
+     * than abandoning the closure, so a mis-tap on Short is one step from being corrected.
+     * The dialog stays open on an invalid count — dismissing it would lose the choice.
+     */
+    private fun showTagCountPrompt(document: OffloadDocument, status: String, statusLabel: String) {
+        val view = com.mitas.ppnam.station1aa.databinding.DialogTagCountBinding
+            .inflate(layoutInflater)
+        val title = if (status == OffloadStatus.SHORT) {
+            getString(R.string.dialog_tag_count_short_title)
+        } else {
+            getString(R.string.dialog_tag_count_over_title)
+        }
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+            .setTitle(title)
+            .setView(view.root)
+            .setPositiveButton(getString(R.string.btn_submit), null)
+            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> showClosePrompt(document) }
+            .show()
+
+        fun submit() {
+            val count = OffloadInput.parseTagCount(view.etTagCount.text.toString())
+            if (count == null) {
+                view.tvTagCountError.text = getString(R.string.error_invalid_tag_count)
+                view.tvTagCountError.visibility = View.VISIBLE
+                return
+            }
+            dialog.dismiss()
+            sendCompletion(document, status, statusLabel, count)
+        }
+
+        // Set after show() so an invalid entry does not dismiss the dialog.
+        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+            .setOnClickListener { submit() }
+        view.etTagCount.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                submit()
+                true
+            } else {
+                false
+            }
+        }
+        view.etTagCount.requestFocus()
+    }
+
+    private fun sendCompletion(
+        document: OffloadDocument,
+        status: String,
+        statusLabel: String,
+        tagCount: Int?,
+    ) {
         step = Step.CLOSING
         updateMatchEnabled()
         showScanStatus(getString(R.string.status_sending), R.color.text_muted)
@@ -344,6 +402,7 @@ class OffloadActivity : SessionActivity() {
             documentType = document.documentType,
             documentNumber = document.documentNumber,
             status = status,
+            tagCount = tagCount,
         )
         workflow.request(
             requestType = "offload_complete",
@@ -359,11 +418,16 @@ class OffloadActivity : SessionActivity() {
                     if (json.optBoolean("accepted", false)) {
                         // §6.4 accepted close: the document is done, so the Offload screen is done.
                         // The toast survives the finish so the operator still sees the confirmation.
-                        android.widget.Toast.makeText(
-                            this,
-                            getString(R.string.msg_document_closed, document.documentNumber, statusLabel),
-                            android.widget.Toast.LENGTH_LONG,
-                        ).show()
+                        val closedMessage = if (tagCount != null) {
+                            getString(
+                                R.string.msg_document_closed_tags,
+                                document.documentNumber, statusLabel, tagCount,
+                            )
+                        } else {
+                            getString(R.string.msg_document_closed, document.documentNumber, statusLabel)
+                        }
+                        android.widget.Toast.makeText(this, closedMessage, android.widget.Toast.LENGTH_LONG)
+                            .show()
                         finishBackward()
                     } else {
                         if (handleSessionRejection(json)) return@request

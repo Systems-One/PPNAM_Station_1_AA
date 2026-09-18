@@ -41,6 +41,14 @@
     <string name="btn_next_pallet">Next Pallet</string>
     <string name="dialog_close_title">Close %1$s as…</string>
     <string name="status_label_short">Short</string>
+    <string name="btn_close_short_tags">Short Tags</string>
+    <string name="btn_close_over_tags">Over Tags</string>
+    <string name="btn_submit">Submit</string>
+    <string name="hint_tag_count">Number of tags</string>
+    <string name="dialog_tag_count_short_title">How many tags short?</string>
+    <string name="dialog_tag_count_over_title">How many tags over?</string>
+    <string name="error_invalid_tag_count">Enter a whole number of tags, 1 or more</string>
+    <string name="msg_document_closed_tags">%1$s closed — %2$s (%3$d tags)</string>
     <string name="status_label_complete">Complete</string>
     <string name="status_label_over">Over</string>
     <string name="msg_document_closed">%1$s closed — %2$s</string>
