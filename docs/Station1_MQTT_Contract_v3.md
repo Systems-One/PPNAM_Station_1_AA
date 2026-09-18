@@ -758,6 +758,8 @@ Workflow error codes (uppercase), the complete 3.0.0 set:
 | `INVALID_BAG_COUNT` | Bag count is not a positive whole number in the allowed range. |
 | `BATCH_REFERENCE_REQUIRED` | Batch reference missing/invalid. |
 | `TAG_COUNT_REQUIRED` | A short or over completion arrived without its tag count (3.3.0). |
+| `OVER_RECEIPT_PENDING_AUTHORISATION` | A first over-receipt close was recorded and is waiting for desktop Manager/Admin authorisation; the receipt stays open (3.3.0). |
+| `INCOMPLETE_PALLETS` | A shortage was recorded, or an over-receipt was reported before every included pallet was offloaded; desktop resolution is pending. |
 | `INVALID_TAG_COUNT` | Tag count is not a whole number of 1 or more, is sent under the wrong status, or rides along with `complete` (3.3.0). |
 | `DATABASE_FAILED` | Station transaction did not commit; no success response exists. |
 | `INTERNAL_ERROR` | Sanitized unexpected station error. |
