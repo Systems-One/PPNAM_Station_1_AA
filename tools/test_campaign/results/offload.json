@@ -1,7 +1,7 @@
 {
  "campaign": "offload",
- "ranAt": "2026-09-17T16:57:12Z",
- "durationS": 751.7,
+ "ranAt": "2026-09-18T04:34:19Z",
+ "durationS": 873.5,
  "results": [
   {
    "id": "O1",
@@ -108,8 +108,8 @@
    "verdict": "PASS",
    "detail": "",
    "notes": [
-    "Short: returned home",
-    "Over: returned home"
+    "Short Tags: sent shortTagCount=3, returned home",
+    "Over Tags: sent overTagCount=2, returned home"
    ],
    "shots": []
   },
@@ -139,6 +139,19 @@
    "notes": [],
    "shots": [
     "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O14_scan_only.png"
+   ]
+  },
+  {
+   "id": "O15",
+   "description": "Short Tags asks how many; 0 is refused and Cancel returns to the classifications",
+   "verdict": "PASS",
+   "detail": "",
+   "notes": [
+    "refused zero: 'Enter a whole number of tags, 1 or more'",
+    "retry sent shortTagCount=5"
+   ],
+   "shots": [
+    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O15_tag_count_prompt.png"
    ]
   }
  ]

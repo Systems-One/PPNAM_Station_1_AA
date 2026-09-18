@@ -5,7 +5,7 @@ physical Chainway C72 (`HC720DE260100322`), driven over adb with scans injected
 as scanner broadcasts. Simulator itself verified by 83 pytest cases and a
 17-check live protocol run (`tools/test_campaign/fake_scanner.py`).
 
-**Overall: 45/45 passed** — generated 2026-09-17 17:10 UTC
+**Overall: 46/46 passed** — generated 2026-09-18 04:34 UTC
 
 ## Login & Session (contract §4) — 12/12
 
@@ -36,7 +36,7 @@ as scanner broadcasts. Simulator itself verified by 83 pytest cases and a
 | T6 | Forced INTERNAL_ERROR is surfaced as a station error | PASS | status: 'Unexpected station error.' |
 | T7 | Expired session sends the operator back to login | PASS |  |
 
-## Offload (contract §6) — 14/14
+## Offload (contract §6) — 15/15
 
 | ID | Case | Verdict | Notes |
 |---|---|---|---|
@@ -50,10 +50,11 @@ as scanner broadcasts. Simulator itself verified by 83 pytest cases and a
 | O8 | Server-side INVALID_BAG_WEIGHT keeps the operator on the edit step | PASS | status: 'Invalid bag weight.' |
 | O9 | Confirm timeout stays on edit; retry succeeds | PASS |  |
 | O10 | Done -> Complete closes the document and returns home; its pallets stop resolving | PASS | returned to home after Complete; post-close scan status: 'Document unknown.' |
-| O11 | Short and Over classifications are both accepted | PASS | Short: returned home; Over: returned home |
+| O11 | Short and Over classifications are both accepted | PASS | Short Tags: sent shortTagCount=3, returned home; Over Tags: sent overTagCount=2, returned home |
 | O12 | Failed completion re-offers the close prompt; retry closes | PASS |  |
 | O13 | Back to scan from the edit step keeps the scanned pair | PASS |  |
 | O14 | RFID and barcode fields ignore typing; only scans fill them | PASS |  |
+| O15 | Short Tags asks how many; 0 is refused and Cancel returns to the classifications | PASS | refused zero: 'Enter a whole number of tags, 1 or more'; retry sent shortTagCount=5 |
 
 ## Settings, Provisioning & Diagnostics — 9/9
 
