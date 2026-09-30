@@ -33,3 +33,11 @@
 -dontwarn kotlin.**
 -keep class kotlin.** { *; }
 -keep class kotlinx.** { *; }
+
+# JCTools (linked directly by HiveMQ's QoS handlers, separate from Netty's
+# shaded copy above). Its queues resolve index fields reflectively by name in
+# their static initialisers, so R8 must not rename, merge or strip them --
+# doing so crashed ScannerApp.onCreate with NoSuchFieldException: consumerIndex.
+-keep class org.jctools.** { *; }
+-keepclassmembers class org.jctools.** { *; }
+-dontwarn org.jctools.**
