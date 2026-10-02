@@ -9,10 +9,7 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.addCallback
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.mitas.ppnam.station1aa.databinding.ActivityOffloadBinding
 import org.json.JSONObject
 
@@ -86,20 +83,15 @@ class OffloadActivity : SessionActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyAppSystemBars()
         binding = ActivityOffloadBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
         setContentView(binding.root)
         forceLightStatusBarIcons()
+        binding.main.padForSystemBarsAndIme()
 
         setupToolbar()
         workflow = WorkflowClient(this)
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
 
         binding.etTag.addTextChangedListener(SimpleTextWatcher { updateMatchEnabled() })
         binding.etBarcode.addTextChangedListener(SimpleTextWatcher { updateMatchEnabled() })

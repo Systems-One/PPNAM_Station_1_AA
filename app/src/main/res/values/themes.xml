@@ -20,9 +20,12 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_muted</item>
 
-        <!-- Status Bar -->
+        <!-- System bars: the same window colour top and bottom. applyAppSystemBars() sets the
+             same values at runtime; these cover the first frame before onCreate runs. -->
         <item name="android:statusBarColor">@color/window_background</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
 
         <!-- Without this, every AlertDialog.Builder(context) call renders on the platform's
              default light dialog surface while inheriting this theme's light textColorPrimary/

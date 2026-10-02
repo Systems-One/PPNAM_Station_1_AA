@@ -32,9 +32,11 @@ class SettingsActivity : SessionActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyAppSystemBars()
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         forceLightStatusBarIcons()
+        binding.main.padForSystemBarsAndIme()
 
         setupToolbar()
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)

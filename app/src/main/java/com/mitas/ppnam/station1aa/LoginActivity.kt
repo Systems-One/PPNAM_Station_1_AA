@@ -68,9 +68,11 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
+        applyAppSystemBars()
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
         forceLightStatusBarIcons()
+        binding.main.padForSystemBarsAndIme()
 
         authClient = AuthClient(this)
         directory = OperatorDirectory(this)

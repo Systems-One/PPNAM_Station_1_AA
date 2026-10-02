@@ -8,10 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.activity.addCallback
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.mitas.ppnam.station1aa.databinding.ActivityTagAssignmentBinding
 
 /**
@@ -45,20 +42,15 @@ class TagAssignmentActivity : SessionActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyAppSystemBars()
         binding = ActivityTagAssignmentBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
         setContentView(binding.root)
         forceLightStatusBarIcons()
+        binding.main.padForSystemBarsAndIme()
 
         setupToolbar()
         workflow = WorkflowClient(this)
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
 
         onBackPressedDispatcher.addCallback(this) { finishBackward() }
     }
