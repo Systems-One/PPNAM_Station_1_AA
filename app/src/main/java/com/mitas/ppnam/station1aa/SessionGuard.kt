@@ -35,7 +35,7 @@ object SessionGuard {
             cancel = { r -> mainHandler.removeCallbacks(r) },
             onExpired = {
                 val minutes = SettingsRepository(app).autoLogoutMinutes()
-                signOut(app.getString(R.string.signed_out_inactivity, minutes))
+                signOut(app.resources.getQuantityString(R.plurals.signed_out_inactivity, minutes, minutes))
             },
         )
 

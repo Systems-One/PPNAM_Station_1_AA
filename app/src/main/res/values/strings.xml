@@ -1,8 +1,13 @@
 <resources>
     <string name="app_name">Station 1</string>
-    <string name="status_online">Online</string>
+    <!-- Connection vocabulary (audit §5 "Pill vocabulary"): the top-bar pill and the Settings
+         Diagnostics broker row use exactly these words; the station row uses Online/Offline/Unknown. -->
+    <string name="status_connected">Connected</string>
+    <string name="status_reconnecting">Reconnecting</string>
     <string name="status_offline">Offline</string>
-    <string name="status_connecting">Connecting</string>
+    <string name="status_station_offline">Station 1 offline</string>
+    <string name="status_online">Online</string>
+    <string name="status_unknown">Unknown</string>
     <string name="error_fill_all_fields">Please fill in all fields</string>
     <string name="message_sent">Sent</string>
     <string name="mqtt_init_failed">MQTT not initialised</string>
@@ -57,10 +62,11 @@
     <string name="error_invalid_count">Enter a whole number of bags greater than 0</string>
     <string name="error_batch_required">Enter a batch reference</string>
 
-    <!-- Shared send states -->
+    <!-- Shared send states. Timeout wording and the explicit Retry follow Station 3 (audit §5). -->
     <string name="status_sending">Sending…</string>
     <string name="status_send_failed">Failed to send — check connection</string>
-    <string name="status_no_response">No response from station — try again</string>
+    <string name="status_no_response">Station 1 did not respond. Check the station and retry.</string>
+    <string name="btn_retry">Retry</string>
 
     <!-- Login / session -->
     <!-- Operator-facing login failures (audit station1-07): the station's protocol text is
@@ -116,6 +122,9 @@
     <!-- Forced sign-out (spec §2, §3) -->
     <string name="signed_out_session_ended">Your session ended. Sign in again.</string>
     <string name="signed_out_station_offline">Station went offline — you were signed out. Sign in again when the station is back online.</string>
-    <string name="signed_out_inactivity">Signed out after %1$d minutes of inactivity.</string>
+    <plurals name="signed_out_inactivity">
+        <item quantity="one">Signed out after 1 minute of inactivity.</item>
+        <item quantity="other">Signed out after %d minutes of inactivity.</item>
+    </plurals>
     <string name="login_station_offline_banner">Station is offline. Sign-in is unavailable until the station app is running.</string>
 </resources>

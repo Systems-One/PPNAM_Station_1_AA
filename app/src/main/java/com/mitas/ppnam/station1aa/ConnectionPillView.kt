@@ -61,12 +61,14 @@ class ConnectionPillView @JvmOverloads constructor(
             ConnectionStatus.OFFLINE -> ContextCompat.getColor(context, R.color.pill_offline)
         }
         // Same wording as Station 2's pill ("Station 2 offline"), with this station's number.
-        val text = when (status) {
-            ConnectionStatus.CONNECTED -> "Connected"
-            ConnectionStatus.RECONNECTING -> "Reconnecting"
-            ConnectionStatus.STATION_OFFLINE -> "Station 1 offline"
-            ConnectionStatus.OFFLINE -> "Offline"
-        }
+        val text = context.getString(
+            when (status) {
+                ConnectionStatus.CONNECTED -> R.string.status_connected
+                ConnectionStatus.RECONNECTING -> R.string.status_reconnecting
+                ConnectionStatus.STATION_OFFLINE -> R.string.status_station_offline
+                ConnectionStatus.OFFLINE -> R.string.status_offline
+            }
+        )
         setAppearance(color, text)
     }
 

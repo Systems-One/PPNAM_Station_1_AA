@@ -143,25 +143,28 @@ class SettingsActivity : SessionActivity() {
      */
     private fun updateDiagnostics(status: ConnectionStatus) {
         val green = getColor(R.color.success)
-        val blue = getColor(R.color.primary_action)
+        val amber = getColor(R.color.warning)
         val red = getColor(R.color.danger)
         val muted = getColor(R.color.text_muted)
 
+        // Same three words and colours as the top-bar pill (audit §5 "Pill vocabulary").
         when (status) {
             ConnectionStatus.CONNECTED, ConnectionStatus.STATION_OFFLINE ->
-                binding.pillBroker.setAppearance(green, "Connected")
+                binding.pillBroker.setAppearance(green, getString(R.string.status_connected))
             ConnectionStatus.RECONNECTING ->
-                binding.pillBroker.setAppearance(blue, "Reconnecting")
+                binding.pillBroker.setAppearance(amber, getString(R.string.status_reconnecting))
             ConnectionStatus.OFFLINE ->
-                binding.pillBroker.setAppearance(red, "Disconnected")
+                binding.pillBroker.setAppearance(red, getString(R.string.status_offline))
         }
 
         // With the broker down, the retained presence value is stale rather than false — saying
         // "offline" there would blame the station for the broker's fault.
         when (status) {
-            ConnectionStatus.CONNECTED -> binding.pillStation.setAppearance(green, "Online")
-            ConnectionStatus.STATION_OFFLINE -> binding.pillStation.setAppearance(blue, "Offline")
-            else -> binding.pillStation.setAppearance(muted, "Unknown")
+            ConnectionStatus.CONNECTED ->
+                binding.pillStation.setAppearance(green, getString(R.string.status_online))
+            ConnectionStatus.STATION_OFFLINE ->
+                binding.pillStation.setAppearance(amber, getString(R.string.status_offline))
+            else -> binding.pillStation.setAppearance(muted, getString(R.string.status_unknown))
         }
     }
 
