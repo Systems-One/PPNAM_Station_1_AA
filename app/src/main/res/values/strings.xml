@@ -116,8 +116,18 @@
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
     <string name="section_session_policy">Session</string>
-    <string name="hint_auto_logout_minutes">Auto sign-out after (minutes, 0 = never)</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out (minutes)</string>
+    <string name="helper_auto_logout_minutes">0 = never, up to 1440</string>
     <string name="error_auto_logout_minutes">Enter 0–1440</string>
+    <string name="error_host_required">Host required</string>
+    <string name="error_port_invalid">Invalid port (1–65535)</string>
+    <string name="error_credentials_required">Enter the broker username and password</string>
+    <string name="error_password_store">Could not store the password securely</string>
+    <!-- Test &amp; Apply (audit §5 "Settings action"): test in place, keep the session, confirm. -->
+    <string name="btn_test_apply">Test &amp; Apply</string>
+    <string name="apply_testing">Testing connection…</string>
+    <string name="apply_success">Connected — settings saved</string>
+    <string name="apply_failed">Could not connect to %1$s:%2$d. Check the broker settings.</string>
 
     <!-- Forced sign-out (spec §2, §3) -->
     <string name="signed_out_session_ended">Your session ended. Sign in again.</string>

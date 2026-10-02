@@ -123,19 +123,20 @@ def main():
             expect(broker == "Connected", f"broker pill wrongly changed: {broker!r}")
             case.shot(d.screenshot("S7_station_offline"))
 
-        with c.case("S8", "Save with unchanged values restarts and reconnects (blank password kept)") as case:
+        with c.case("S8", "Test & Apply with unchanged values reconnects in place (blank password kept)") as case:
             base = len(sim.events())
             save = d.scroll_to("btnSaveSettings")
-            expect(save is not None, "save button not reachable")
+            expect(save is not None, "Test & Apply button not reachable")
             d.tap(xy=save.center)
             time.sleep(6)
-            # app restarted to MainActivity-or-login; device presence must come back online
+            # the app stays on Settings; device presence must come back online
             presence = sim.wait_for(
                 lambda e: e["dir"] == "presence" and e["topic"].endswith(DEVICE_ID)
                 and e["payload"] == "online", since=base, timeout=25)
-            expect(presence is not None, "scanner did not republish online presence after save")
-            expect(d.find(id="etUsername", retries=10) is not None,
-                   "app did not land back on the login screen")
+            expect(presence is not None, "scanner did not republish online presence after apply")
+            status = d.find(id="tvApplyStatus", retries=10)
+            expect(status is not None and "settings saved" in status.text.lower(),
+                   f"apply status {status and status.text!r}")
             deadline = time.time() + 15
             pill_text = ""
             while time.time() < deadline and pill_text != "Connected":
