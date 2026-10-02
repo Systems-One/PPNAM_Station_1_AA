@@ -122,16 +122,48 @@
                         android:textSize="18sp"
                         tools:text="E28011700000021B2F6E9827" />
 
-                    <TextView
-                        android:id="@+id/tvSendStatus"
-                        android:layout_width="wrap_content"
+                    <!-- Status row like Station 3's: spinner while pending (audit station1-21),
+                         text, and an explicit Retry after a timeout/send failure (audit §5). -->
+                    <LinearLayout
+                        android:id="@+id/layoutSendStatus"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:textColor="@color/text_muted"
-                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
                         android:visibility="gone"
-                        tools:text="Sent"
-                        tools:visibility="visible" />
+                        tools:visibility="visible">
+
+                        <ProgressBar
+                            android:id="@+id/progressSend"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="10dp"
+                            android:indeterminateTint="@color/accent_action"
+                            android:visibility="gone"
+                            tools:visibility="visible" />
+
+                        <TextView
+                            android:id="@+id/tvSendStatus"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/text_muted"
+                            android:textSize="14sp"
+                            tools:text="Sending…" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRetrySend"
+                            style="@style/Widget.SysOneScanner.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="@string/btn_retry"
+                            android:textColor="@color/text_primary"
+                            android:visibility="gone"
+                            app:strokeColor="@color/border_primary"
+                            tools:visibility="visible" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
