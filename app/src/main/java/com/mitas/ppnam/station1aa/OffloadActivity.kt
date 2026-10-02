@@ -371,14 +371,7 @@ class OffloadActivity : SessionActivity() {
         // Set after show() so an invalid entry does not dismiss the dialog.
         dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
             .setOnClickListener { submit() }
-        view.etTagCount.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
-                submit()
-                true
-            } else {
-                false
-            }
-        }
+        view.etTagCount.setOnSubmit { submit() }
         view.etTagCount.requestFocus()
     }
 
