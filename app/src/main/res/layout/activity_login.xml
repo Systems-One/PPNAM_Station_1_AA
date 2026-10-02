@@ -47,6 +47,7 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollLogin"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:clipToPadding="false"
@@ -57,7 +58,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appBarLayout">
 
-        <!-- Centered like Station 2's login: one card, vertically centred in the free space -->
+        <!-- Centered like Station 2's login: one card, vertically centred in the free space.
+             With the keyboard up LoginActivity scrolls Log In into view (audit station1-10). -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -93,6 +95,19 @@
                         android:visibility="gone"
                         tools:visibility="visible" />
 
+                    <!-- The error line sits ABOVE the fields: below them it grew the form and
+                         pushed Log In under the keyboard (audit group a, sub-cause 4). -->
+                    <TextView
+                        android:id="@+id/tvLoginError"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:textColor="@color/danger"
+                        android:textSize="15sp"
+                        android:visibility="gone"
+                        tools:text="Incorrect username or password"
+                        tools:visibility="visible" />
+
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilUsername"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
@@ -109,7 +124,7 @@
                             android:layout_height="wrap_content"
                             android:completionThreshold="0"
                             android:imeOptions="actionNext"
-                            android:inputType="text"
+                            android:inputType="text|textNoSuggestions"
                             android:maxLines="1"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -122,8 +137,9 @@
                         android:layout_marginTop="16dp"
                         android:hint="@string/hint_password"
                         app:boxStrokeColor="@color/outline_dark"
-                        app:hintTextColor="@color/text_secondary_dark"
-                        app:passwordToggleEnabled="false">
+                        app:endIconMode="password_toggle"
+                        app:endIconTint="@color/text_muted"
+                        app:hintTextColor="@color/text_secondary_dark">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPassword"
@@ -134,17 +150,6 @@
                             android:maxLines="1"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
-
-                    <TextView
-                        android:id="@+id/tvLoginError"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:textColor="@color/danger"
-                        android:textSize="15sp"
-                        android:visibility="gone"
-                        tools:text="Login failed"
-                        tools:visibility="visible" />
 
                     <FrameLayout
                         android:layout_width="match_parent"

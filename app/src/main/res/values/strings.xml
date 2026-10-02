@@ -63,6 +63,13 @@
     <string name="status_no_response">No response from station — try again</string>
 
     <!-- Login / session -->
+    <!-- Operator-facing login failures (audit station1-07): the station's protocol text is
+         logged, never shown. -->
+    <string name="login_invalid_credentials">Incorrect username or password</string>
+    <string name="login_badge_rejected">Badge not recognised. Log in with your username and password.</string>
+    <string name="login_not_connected">Not connected to the station</string>
+    <string name="login_timeout">Station 1 did not respond. Check the station and try again.</string>
+    <string name="login_failed_generic">Login failed. Try again.</string>
     <string name="title_log_in">Log In</string>
     <string name="hint_username">Username</string>
     <string name="hint_password">Password</string>
@@ -107,6 +114,7 @@
     <string name="error_auto_logout_minutes">Enter 0–1440</string>
 
     <!-- Forced sign-out (spec §2, §3) -->
+    <string name="signed_out_session_ended">Your session ended. Sign in again.</string>
     <string name="signed_out_station_offline">Station went offline — you were signed out. Sign in again when the station is back online.</string>
     <string name="signed_out_inactivity">Signed out after %1$d minutes of inactivity.</string>
     <string name="login_station_offline_banner">Station is offline. Sign-in is unavailable until the station app is running.</string>
