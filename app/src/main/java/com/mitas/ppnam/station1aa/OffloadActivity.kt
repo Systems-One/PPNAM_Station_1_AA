@@ -8,8 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
+import android.view.WindowManager
 import androidx.activity.addCallback
-import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import com.mitas.ppnam.station1aa.databinding.ActivityOffloadBinding
 import org.json.JSONObject
 
@@ -32,7 +33,7 @@ import org.json.JSONObject
  *
  * Value-validation rejections (INVALID_BAG_WEIGHT / INVALID_BAG_COUNT /
  * BATCH_REFERENCE_REQUIRED) keep the operator on the edit step; any other rejection returns
- * to scanning.
+ * to scanning. Every send shows a spinner, and a timeout or send failure offers Retry.
  */
 class OffloadActivity : SessionActivity() {
 
@@ -95,11 +96,20 @@ class OffloadActivity : SessionActivity() {
 
         binding.etTag.addTextChangedListener(SimpleTextWatcher { updateMatchEnabled() })
         binding.etBarcode.addTextChangedListener(SimpleTextWatcher { updateMatchEnabled() })
+        // A validation message must not outlive the edit that fixes it (audit station1-11).
+        val clearConfirmMessage = SimpleTextWatcher { if (step == Step.EDIT) hideConfirmStatus() }
+        binding.etBagWeight.addTextChangedListener(clearConfirmMessage)
+        binding.etBagCount.addTextChangedListener(clearConfirmMessage)
+        binding.etBatchRef.addTextChangedListener(clearConfirmMessage)
 
         binding.btnMatchPallet.setOnClickListener { matchPallet() }
         binding.btnMatchPallet.applyPressScaleFeedback()
+        binding.btnRetryScan.setOnClickListener { matchPallet() }
         binding.btnConfirmOffload.setOnClickListener { confirmOffload() }
         binding.btnConfirmOffload.applyPressScaleFeedback()
+        binding.btnRetryConfirm.setOnClickListener { confirmOffload() }
+        // Done on the last edit field confirms (audit group b).
+        binding.etBatchRef.setOnSubmit { confirmOffload() }
         binding.btnBackToScan.setOnClickListener { enterScanStep(clearScan = false) }
 
         onBackPressedDispatcher.addCallback(this) { finishBackward() }
@@ -117,8 +127,8 @@ class OffloadActivity : SessionActivity() {
         step = Step.SCAN
         currentDocument = null
         binding.cardValues.visibility = View.GONE
-        binding.tvConfirmStatus.visibility = View.GONE
-        binding.tvScanStatus.visibility = View.GONE
+        hideConfirmStatus()
+        hideScanStatus()
         binding.etTag.isEnabled = true
         binding.etBarcode.isEnabled = true
         if (clearScan) {
@@ -139,9 +149,9 @@ class OffloadActivity : SessionActivity() {
         matchedTag = tagId
         matchedBarcode = barcode
         currentDocument = document
-        binding.tvScanStatus.visibility = View.GONE
+        hideScanStatus()
         binding.cardValues.visibility = View.VISIBLE
-        binding.tvConfirmStatus.visibility = View.GONE
+        hideConfirmStatus()
         binding.tvDocumentInfo.text = getString(
             R.string.label_document_progress,
             document.documentNumber, document.palletsScanned, document.palletsExpected,
@@ -167,12 +177,13 @@ class OffloadActivity : SessionActivity() {
         if (step != Step.SCAN) return
         val tagId = binding.etTag.text.toString().trim()
         val barcode = binding.etBarcode.text.toString().trim()
+        if (tagId.isBlank() || barcode.isBlank()) return
 
         step = Step.MATCHING
         binding.btnMatchPallet.isEnabled = false
         binding.etTag.isEnabled = false
         binding.etBarcode.isEnabled = false
-        showScanStatus(getString(R.string.status_sending), R.color.text_muted)
+        showScanStatus(getString(R.string.status_sending), R.color.text_muted, pending = true)
 
         val payload = WorkflowMessages.offloadScan(
             deviceId = DeviceIdentity.deviceId(this),
@@ -204,13 +215,13 @@ class OffloadActivity : SessionActivity() {
                         backToScanWithError(stationReason(json))
                     }
                 }
-                .onFailure { e -> backToScanWithError(failureText(e)) }
+                .onFailure { e -> backToScanWithError(failureText(e), retry = true) }
         }
     }
 
-    private fun backToScanWithError(message: String) {
+    private fun backToScanWithError(message: String, retry: Boolean = false) {
         enterScanStep(clearScan = false)
-        showScanStatus(message, R.color.danger)
+        showScanStatus(message, R.color.danger, retry = retry)
     }
 
     // ---- step 2: offload_confirm -------------------------------------------------------------
@@ -228,7 +239,7 @@ class OffloadActivity : SessionActivity() {
 
         step = Step.CONFIRMING
         binding.btnConfirmOffload.isEnabled = false
-        showConfirmStatus(getString(R.string.status_sending), R.color.text_muted)
+        showConfirmStatus(getString(R.string.status_sending), R.color.text_muted, pending = true)
 
         val payload = WorkflowMessages.offloadConfirm(
             deviceId = DeviceIdentity.deviceId(this),
@@ -272,7 +283,7 @@ class OffloadActivity : SessionActivity() {
                 .onFailure { e ->
                     step = Step.EDIT
                     binding.btnConfirmOffload.isEnabled = true
-                    showConfirmStatus(failureText(e), R.color.danger)
+                    showConfirmStatus(failureText(e), R.color.danger, retry = true)
                 }
         }
     }
@@ -282,7 +293,8 @@ class OffloadActivity : SessionActivity() {
     /**
      * §6.4: after every accepted confirm the operator may close the looked-up document.
      * Custom view: the two choices carry distinct colors (continue = blue, done = green)
-     * instead of the theme's identical dialog buttons.
+     * instead of the theme's identical dialog buttons. Not cancelable: a scrim tap or Back used
+     * to act as a silent "Next Pallet" (audit station1-17).
      */
     private fun showDonePrompt(document: OffloadDocument, scanned: Int, expected: Int) {
         val message =
@@ -294,9 +306,10 @@ class OffloadActivity : SessionActivity() {
         val view = com.mitas.ppnam.station1aa.databinding.DialogOffloadDoneBinding
             .inflate(layoutInflater)
         view.tvDoneMessage.text = message
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        val dialog = neutralDialog()
             .setTitle(getString(R.string.dialog_done_title))
             .setView(view.root)
+            .setCancelable(false)
             .show()
         view.btnNextPallet.setOnClickListener { dialog.dismiss() }
         view.btnDoneClose.setOnClickListener {
@@ -307,15 +320,20 @@ class OffloadActivity : SessionActivity() {
         view.btnDoneClose.applyPressScaleFeedback()
     }
 
-    /** Short = amber, Complete = green, Over = red — the classification is color-coded. */
-    private fun showClosePrompt(document: OffloadDocument) {
+    /**
+     * Short = amber, Complete = green, Over = red — the classification is color-coded.
+     * [reason] is the station's rejection of the previous close attempt; it is shown inside
+     * this dialog so the operator sees why they are being asked again (audit station1-08).
+     */
+    private fun showClosePrompt(document: OffloadDocument, reason: String? = null) {
         val view = com.mitas.ppnam.station1aa.databinding.DialogOffloadCloseBinding
             .inflate(layoutInflater)
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        val builder = neutralDialog()
             .setTitle(getString(R.string.dialog_close_title, document.documentNumber))
             .setView(view.root)
             .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
+        if (!reason.isNullOrBlank()) builder.setMessage(reason)
+        val dialog = builder.show()
         val choices = listOf(
             view.btnCloseShort to OffloadStatus.SHORT,
             view.btnCloseComplete to OffloadStatus.COMPLETE,
@@ -350,12 +368,15 @@ class OffloadActivity : SessionActivity() {
         } else {
             getString(R.string.dialog_tag_count_over_title)
         }
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        val dialog = neutralDialog()
             .setTitle(title)
             .setView(view.root)
             .setPositiveButton(getString(R.string.btn_submit), null)
             .setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> showClosePrompt(document) }
-            .show()
+            .create()
+        // The field is the dialog's whole purpose: open the keyboard with it (audit station1-18).
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+        dialog.show()
 
         fun submit() {
             val count = OffloadInput.parseTagCount(view.etTagCount.text.toString())
@@ -369,8 +390,7 @@ class OffloadActivity : SessionActivity() {
         }
 
         // Set after show() so an invalid entry does not dismiss the dialog.
-        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
-            .setOnClickListener { submit() }
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { submit() }
         view.etTagCount.setOnSubmit { submit() }
         view.etTagCount.requestFocus()
     }
@@ -383,7 +403,7 @@ class OffloadActivity : SessionActivity() {
     ) {
         step = Step.CLOSING
         updateMatchEnabled()
-        showScanStatus(getString(R.string.status_sending), R.color.text_muted)
+        showScanStatus(getString(R.string.status_sending), R.color.text_muted, pending = true)
 
         val payload = WorkflowMessages.offloadComplete(
             deviceId = DeviceIdentity.deviceId(this),
@@ -420,14 +440,17 @@ class OffloadActivity : SessionActivity() {
                         finishBackward()
                     } else {
                         if (handleSessionRejection(json)) return@request
-                        showScanStatus(stationReason(json), R.color.danger)
-                        // Let the operator retry the closure (or cancel back to scanning).
-                        showClosePrompt(document)
+                        val reason = stationReason(json)
+                        showScanStatus(reason, R.color.danger)
+                        // Let the operator retry the closure (or cancel back to scanning) —
+                        // with the reason in the dialog itself, not hidden behind it.
+                        showClosePrompt(document, reason)
                     }
                 }
                 .onFailure { e ->
-                    showScanStatus(failureText(e), R.color.danger)
-                    showClosePrompt(document)
+                    val reason = failureText(e)
+                    showScanStatus(reason, R.color.danger)
+                    showClosePrompt(document, reason)
                 }
         }
     }
@@ -439,12 +462,13 @@ class OffloadActivity : SessionActivity() {
             json.optString("errorCode", "").ifBlank { getString(R.string.status_send_failed) }
         }
 
-    /** §8: a closed/expired session sends the operator back to login, not into a dead end. */
+    /** §8: a closed/expired session sends the operator back to login, with the reason. */
     private fun handleSessionRejection(json: JSONObject): Boolean {
         if (!WorkflowClient.isSessionRejection(json)) return false
         OperatorSessionHolder.clear()
         startActivity(Intent(this, LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra(LoginActivity.EXTRA_SIGNED_OUT_REASON, getString(R.string.signed_out_session_ended))
         })
         finish()
         return true
@@ -454,16 +478,44 @@ class OffloadActivity : SessionActivity() {
         if (e is WorkflowTimeout) getString(R.string.status_no_response)
         else getString(R.string.status_send_failed)
 
-    private fun showScanStatus(message: String, colorRes: Int) {
-        binding.tvScanStatus.visibility = View.VISIBLE
+    private fun showScanStatus(
+        message: String,
+        colorRes: Int,
+        pending: Boolean = false,
+        retry: Boolean = false,
+    ) {
+        binding.layoutScanStatus.visibility = View.VISIBLE
+        binding.progressScan.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvScanStatus.text = message
         binding.tvScanStatus.setTextColor(getColor(colorRes))
+        binding.btnRetryScan.visibility = if (retry) View.VISIBLE else View.GONE
     }
 
-    private fun showConfirmStatus(message: String, colorRes: Int) {
-        binding.tvConfirmStatus.visibility = View.VISIBLE
+    private fun hideScanStatus() {
+        binding.layoutScanStatus.visibility = View.GONE
+        binding.progressScan.visibility = View.GONE
+        binding.btnRetryScan.visibility = View.GONE
+    }
+
+    private fun showConfirmStatus(
+        message: String,
+        colorRes: Int,
+        pending: Boolean = false,
+        retry: Boolean = false,
+    ) {
+        binding.layoutConfirmStatus.visibility = View.VISIBLE
+        binding.progressConfirm.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvConfirmStatus.text = message
         binding.tvConfirmStatus.setTextColor(getColor(colorRes))
+        binding.btnRetryConfirm.visibility = if (retry) View.VISIBLE else View.GONE
+    }
+
+    /** INVISIBLE, not GONE: the row keeps its minHeight so Confirm Offload never jumps. */
+    private fun hideConfirmStatus() {
+        binding.layoutConfirmStatus.visibility = View.INVISIBLE
+        binding.progressConfirm.visibility = View.GONE
+        binding.btnRetryConfirm.visibility = View.GONE
+        binding.tvConfirmStatus.text = ""
     }
 
     override fun onResume() {
