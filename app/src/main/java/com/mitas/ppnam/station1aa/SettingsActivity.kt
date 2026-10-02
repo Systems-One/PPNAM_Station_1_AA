@@ -2,6 +2,8 @@ package com.mitas.ppnam.station1aa
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.addCallback
@@ -19,14 +21,19 @@ class SettingsActivity : SessionActivity() {
         }
     }
 
-    // Ported from Station 2's SettingsViewModel so both apps' supervisor lock behave identically.
-    private val correctPin = "079545"
-    private var failedPinAttempts = 0
-    private var lockedOutUntilMs = 0L
+    // Ported from Station 2's SettingsViewModel so both apps' supervisor lock behave identically;
+    // the counter and the lockout deadline are persisted (audit station1-01).
+    private lateinit var pinLockout: PinLockout
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** 1 s ticker while locked out: counts the message down and re-enables Unlock at the end. */
+    private val lockoutTicker = object : Runnable {
+        override fun run() { renderLockout() }
+    }
 
     private companion object {
-        const val MAX_PIN_ATTEMPTS = 5
-        const val PIN_LOCKOUT_MS = 30_000L
+        const val CORRECT_PIN = "079545"
+        const val KEY_UNLOCKED = "settings_unlocked"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,6 +65,10 @@ class SettingsActivity : SessionActivity() {
 
         binding.btnUnlock.setOnClickListener { submitPin() }
         binding.etPin.setOnSubmit { submitPin() }
+        pinLockout = PinLockout(CORRECT_PIN, PrefsPinLockoutStore(this), System::currentTimeMillis)
+        // A lockout in progress must be visible (and Unlock disabled) the moment the screen opens,
+        // and an unlocked form must survive recreation without asking for the PIN again.
+        if (savedInstanceState?.getBoolean(KEY_UNLOCKED) == true) showUnlocked() else renderLockout()
 
         binding.btnSaveSettings.setOnClickListener {
             val host = binding.etBrokerHost.text.toString().trim()
@@ -172,31 +183,53 @@ class SettingsActivity : SessionActivity() {
     }
 
     private fun submitPin() {
-        val now = System.currentTimeMillis()
-        if (now < lockedOutUntilMs) {
-            val remainingSec = (lockedOutUntilMs - now + 999) / 1_000
-            showLockoutMessage("Too many attempts. Try again in ${remainingSec}s.")
-            binding.etPin.setText("")
-            return
-        }
-
-        if (binding.etPin.text.toString() == correctPin) {
-            failedPinAttempts = 0
-            hidePinMessages()
-            binding.cardPinLock.visibility = View.GONE
-            binding.groupSettingsFields.visibility = View.VISIBLE
-        } else {
-            binding.etPin.setText("")
-            failedPinAttempts++
-            if (failedPinAttempts >= MAX_PIN_ATTEMPTS) {
-                lockedOutUntilMs = now + PIN_LOCKOUT_MS
-                failedPinAttempts = 0
-                showLockoutMessage("Too many attempts. Try again in ${PIN_LOCKOUT_MS / 1_000}s.")
-            } else {
-                val left = MAX_PIN_ATTEMPTS - failedPinAttempts
-                showErrorMessage("Incorrect PIN. $left attempt${if (left == 1) "" else "s"} left before lockout.")
+        when (val outcome = pinLockout.submit(binding.etPin.text.toString())) {
+            PinLockout.Outcome.Blank -> showErrorMessage(getString(R.string.pin_blank))
+            PinLockout.Outcome.Unlocked -> {
+                hidePinMessages()
+                binding.etPin.setText("")
+                showUnlocked()
+            }
+            is PinLockout.Outcome.Rejected -> {
+                binding.etPin.setText("")
+                showErrorMessage(
+                    resources.getQuantityString(
+                        R.plurals.pin_attempts_left, outcome.attemptsLeft, outcome.attemptsLeft,
+                    )
+                )
+            }
+            is PinLockout.Outcome.LockedOut -> {
+                binding.etPin.setText("")
+                renderLockout()
             }
         }
+    }
+
+    private fun showUnlocked() {
+        binding.cardPinLock.visibility = View.GONE
+        binding.groupSettingsFields.visibility = View.VISIBLE
+    }
+
+    /**
+     * Reflects the persisted lockout: message with the live countdown, field and Unlock disabled,
+     * re-armed every second until it expires (audit station1-16).
+     */
+    private fun renderLockout() {
+        mainHandler.removeCallbacks(lockoutTicker)
+        val remainingMs = pinLockout.remainingLockoutMs()
+        if (remainingMs <= 0L) {
+            binding.tvPinLockout.visibility = View.GONE
+            binding.etPin.isEnabled = true
+            binding.btnUnlock.isEnabled = true
+            return
+        }
+        val seconds = ((remainingMs + 999) / 1_000).toInt()
+        binding.tvPinLockout.text = getString(R.string.pin_locked_out, seconds)
+        binding.tvPinLockout.visibility = View.VISIBLE
+        binding.tvPinError.visibility = View.GONE
+        binding.etPin.isEnabled = false
+        binding.btnUnlock.isEnabled = false
+        mainHandler.postDelayed(lockoutTicker, 1_000L)
     }
 
     private fun showErrorMessage(message: String) {
@@ -205,15 +238,14 @@ class SettingsActivity : SessionActivity() {
         binding.tvPinLockout.visibility = View.GONE
     }
 
-    private fun showLockoutMessage(message: String) {
-        binding.tvPinLockout.text = message
-        binding.tvPinLockout.visibility = View.VISIBLE
-        binding.tvPinError.visibility = View.GONE
-    }
-
     private fun hidePinMessages() {
         binding.tvPinError.visibility = View.GONE
         binding.tvPinLockout.visibility = View.GONE
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_UNLOCKED, binding.groupSettingsFields.visibility == View.VISIBLE)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -225,6 +257,7 @@ class SettingsActivity : SessionActivity() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(lockoutTicker)
         super.onDestroy()
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
     }

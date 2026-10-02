@@ -78,6 +78,15 @@
     <string name="btn_cancel">Cancel</string>
 
     <!-- Settings -->
+    <string name="pin_prompt">Enter supervisor PIN to edit settings</string>
+    <string name="hint_pin">PIN</string>
+    <string name="btn_unlock">Unlock</string>
+    <string name="pin_blank">Enter the 6-digit PIN</string>
+    <plurals name="pin_attempts_left">
+        <item quantity="one">Incorrect PIN. 1 attempt left before lockout.</item>
+        <item quantity="other">Incorrect PIN. %d attempts left before lockout.</item>
+    </plurals>
+    <string name="pin_locked_out">Too many attempts. Try again in %1$ds.</string>
     <string name="section_diagnostics">Diagnostics</string>
     <string name="section_configuration">Configuration</string>
     <string name="section_broker">Broker</string>
