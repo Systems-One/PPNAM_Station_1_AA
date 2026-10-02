@@ -34,11 +34,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SysOneScanner">
 
+        <!-- Every screen is portrait: the C72 has auto-rotate on, and rotation re-locked Settings,
+             wiped Tag Assignment's last scan and put dialogs under the keyboard (audit group e).
+             A handheld scanner gains nothing from landscape. -->
         <activity
             android:name=".LoginActivity"
             android:exported="true"
             android:label="Log In"
-            android:windowSoftInputMode="stateHidden|adjustResize">
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -48,24 +53,35 @@
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:windowSoftInputMode="stateHidden|adjustResize" />
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity" />
 
         <activity
             android:name=".TagAssignmentActivity"
             android:exported="false"
             android:label="Tag Assignment"
-            android:theme="@style/Theme.SysOneScanner" />
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.SysOneScanner"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity" />
 
         <activity
             android:name=".OffloadActivity"
             android:exported="false"
             android:label="Offload"
-            android:theme="@style/Theme.SysOneScanner" />
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.SysOneScanner"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity" />
 
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:theme="@style/Theme.SysOneScanner" />
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.SysOneScanner"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity" />
 
     </application>
 
