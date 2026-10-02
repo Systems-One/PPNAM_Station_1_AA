@@ -176,21 +176,7 @@ class SettingsActivity : SessionActivity() {
         binding.tvSignedInAs.text =
             if (session.role.isNotBlank()) "${session.operatorName} · ${session.role}"
             else session.operatorName
-        binding.btnLogOut.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
-                .setTitle(getString(R.string.logout_dialog_title))
-                .setMessage(getString(R.string.logout_dialog_message))
-                .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
-                    AuthClient(this).logout {
-                        startActivity(Intent(this, LoginActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        })
-                        finish()
-                    }
-                }
-                .setNegativeButton(getString(R.string.btn_cancel), null)
-                .show()
-        }
+        binding.btnLogOut.setOnClickListener { showLogoutDialog() }
     }
 
     private fun submitPin() {

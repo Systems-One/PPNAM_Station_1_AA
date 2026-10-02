@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.activity.addCallback
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station1aa.databinding.ActivityLoginBinding
 
@@ -101,7 +100,7 @@ class LoginActivity : AppCompatActivity() {
 
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.
-        onBackPressedDispatcher.addCallback(this) { showExitDialog() }
+        onBackPressedDispatcher.addCallback(this) { showExitAppDialog() }
     }
 
     override fun onResume() {
@@ -210,15 +209,6 @@ class LoginActivity : AppCompatActivity() {
         }
         startActivity(intent)
         finish()
-    }
-
-    private fun showExitDialog() {
-        AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
-            .setTitle(getString(R.string.exit_dialog_title))
-            .setMessage(getString(R.string.exit_dialog_message))
-            .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }
-            .setNegativeButton(getString(R.string.exit_dialog_stay), null)
-            .show()
     }
 
     override fun onDestroy() {

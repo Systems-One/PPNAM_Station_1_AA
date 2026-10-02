@@ -255,7 +255,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnBackToScan"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        style="@style/Widget.SysOneScanner.Button.TextButton"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginTop="4dp"

@@ -80,22 +80,6 @@ class MainActivity : SessionActivity() {
         view.isFocusable = enabled
     }
 
-    private fun showLogoutDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
-            .setTitle(getString(R.string.logout_dialog_title))
-            .setMessage(getString(R.string.logout_dialog_message))
-            .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
-                AuthClient(this).logout {
-                    startActivity(Intent(this, LoginActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    })
-                    finish()
-                }
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
