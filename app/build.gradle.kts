@@ -67,11 +67,6 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            // The Chainway DeviceAPI aar ships ARM-only .so files, which an x86_64 emulator
-            // refuses (INSTALL_FAILED_NO_MATCHING_ABIS). `-PemulatorNoJni` strips them for
-            // emulator-only verification builds; emulator scanning is driven by adb broadcasts,
-            // never by the SDK, so nothing on the emulator loads the library.
-            if (project.hasProperty("emulatorNoJni")) excludes += "**/*.so"
         }
         resources {
             excludes += "META-INF/INDEX.LIST"
@@ -99,9 +94,6 @@ dependencies {
     implementation(libs.androidx.dynamicanimation)
     implementation(libs.hivemq.mqtt.client)
     implementation(libs.netty.codec.http)
-
-    // Chainway SDK
-    implementation(fileTree("libs") { include("*.aar") })
 
     testImplementation(libs.junit)
     // Real org.json for JVM unit tests — the mockable android.jar only has stubs.
