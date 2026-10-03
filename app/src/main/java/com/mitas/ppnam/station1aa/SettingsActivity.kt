@@ -38,7 +38,12 @@ class SettingsActivity : SessionActivity() {
     private var applySettings: BrokerSettings? = null
     /** Set synchronously at entry to testAndApply; [applyListener] only exists after the async disconnect. */
     private var applying = false
-    private val applyTimeout = Runnable { finishApply(connected = false) }
+    private val applyTimeout = Runnable {
+        finishApply(connected = false)
+        // A hung disconnect must never strand the handheld offline.
+        val mqtt = MqttManager.getInstance(this)
+        if (!mqtt.isConnected() && !mqtt.isConnectAttemptInFlight()) mqtt.connect()
+    }
 
     private enum class ApplyState { IDLE, TESTING, SUCCESS, FAILED }
 
@@ -304,7 +309,9 @@ class SettingsActivity : SessionActivity() {
                 }
                 applyListener = listener
                 mqtt.addConnectionListener(listener)
-                mqtt.connect()
+                // force: an attempt that was in flight against the old settings is abandoned,
+                // otherwise connect()'s isConnecting guard would swallow this one.
+                mqtt.connect(force = true)
             }
         }
     }
