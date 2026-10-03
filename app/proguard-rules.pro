@@ -14,10 +14,6 @@
 -dontwarn io.netty.**
 -keepclassmembers class io.netty.** { *; }
 
-# Chainway / RSCJA SDK
--keep class com.rscja.** { *; }
--dontwarn com.rscja.**
-
 # Android ViewBinding (generated classes)
 -keep class * extends androidx.viewbinding.ViewBinding { *; }
 
