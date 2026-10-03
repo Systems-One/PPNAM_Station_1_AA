@@ -1,5 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+    <!-- Base application theme. The app is always dark; there is deliberately NO values-night
+         override (it used to re-declare this style empty and reset every colour in system dark
+         mode — audit static-09). -->
     <style name="Base.Theme.SysOneScanner" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Base / Surface Colours -->
         <item name="android:windowBackground">@color/window_background</item>
@@ -10,6 +12,7 @@
              colorOnSurface) renders near-invisible on this dark palette. -->
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorOnSurfaceVariant">@color/text_muted</item>
+        <item name="colorOutline">@color/border_primary</item>
 
         <!-- Primary / Accent -->
         <item name="colorPrimary">@color/primary_action</item>
@@ -20,25 +23,59 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_muted</item>
 
-        <!-- Status Bar -->
+        <!-- System bars: the same window colour top and bottom. applyAppSystemBars() sets the
+             same values at runtime; these cover the first frame before onCreate runs. -->
         <item name="android:statusBarColor">@color/window_background</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
 
-        <!-- Without this, every AlertDialog.Builder(context) call renders on the platform's
-             default light dialog surface while inheriting this theme's light textColorPrimary/
-             Secondary (meant for the dark app background) - text ends up near-invisible
-             (light-on-white). -->
+        <!-- Dialogs: Material 3 (28dp corners, 24dp inset), neutral buttons; the destructive
+             variant below colours the confirm red. Both attrs so AppCompat and Material
+             builders agree. -->
+        <item name="materialAlertDialogTheme">@style/AppAlertDialogTheme</item>
         <item name="alertDialogTheme">@style/AppAlertDialogTheme</item>
         <item name="android:alertDialogTheme">@style/AppAlertDialogTheme</item>
     </style>
 
     <style name="Theme.SysOneScanner" parent="Base.Theme.SysOneScanner" />
 
-    <style name="AppAlertDialogTheme" parent="ThemeOverlay.AppCompat.Dialog.Alert">
-        <item name="android:windowBackground">@color/card_background</item>
+    <!-- Matches Station 2's M3 AlertDialog: card surface, rounded, dismiss in text colour. -->
+    <style name="AppAlertDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/card_background</item>
+        <item name="colorSurfaceContainerHigh">@color/card_background</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_muted</item>
+        <item name="colorPrimary">@color/text_primary</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_muted</item>
-        <item name="colorAccent">@color/primary_action</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.SysOneScanner.Button.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.SysOneScanner.Button.DialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.SysOneScanner.Button.DialogButton</item>
+    </style>
+
+    <!-- Positive action destroys something (closes the app, ends the session): red confirm. -->
+    <style name="AppAlertDialogTheme.Destructive">
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.SysOneScanner.Button.DialogButton.Destructive</item>
+    </style>
+
+    <style name="Widget.SysOneScanner.Button.DialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="Widget.SysOneScanner.Button.DialogButton.Destructive">
+        <item name="android:textColor">@color/danger</item>
+    </style>
+
+    <!-- Title Case everywhere: the MaterialComponents TextButton/OutlinedButton styles the
+         layouts used to reference upper-case their labels ("BACK TO SCAN", "LOG OUT"). -->
+    <style name="Widget.SysOneScanner.Button.TextButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="Widget.SysOneScanner.Button.OutlinedButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textAllCaps">false</item>
     </style>
 
     <!-- Optical sizing: large text wants slightly negative tracking (letters read too

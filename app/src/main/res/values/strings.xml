@@ -1,8 +1,13 @@
 <resources>
     <string name="app_name">Station 1</string>
-    <string name="status_online">Online</string>
+    <!-- Connection vocabulary (audit §5 "Pill vocabulary"): the top-bar pill and the Settings
+         Diagnostics broker row use exactly these words; the station row uses Online/Offline/Unknown. -->
+    <string name="status_connected">Connected</string>
+    <string name="status_reconnecting">Reconnecting</string>
     <string name="status_offline">Offline</string>
-    <string name="status_connecting">Connecting</string>
+    <string name="status_station_offline">Station 1 offline</string>
+    <string name="status_online">Online</string>
+    <string name="status_unknown">Unknown</string>
     <string name="error_fill_all_fields">Please fill in all fields</string>
     <string name="message_sent">Sent</string>
     <string name="mqtt_init_failed">MQTT not initialised</string>
@@ -57,12 +62,21 @@
     <string name="error_invalid_count">Enter a whole number of bags greater than 0</string>
     <string name="error_batch_required">Enter a batch reference</string>
 
-    <!-- Shared send states -->
+    <!-- Shared send states. Timeout wording and the explicit Retry follow Station 3 (audit §5). -->
     <string name="status_sending">Sending…</string>
     <string name="status_send_failed">Failed to send — check connection</string>
-    <string name="status_no_response">No response from station — try again</string>
+    <string name="status_no_response">Station 1 did not respond. Check the station and retry.</string>
+    <string name="btn_retry">Retry</string>
 
     <!-- Login / session -->
+    <!-- Operator-facing login failures (audit station1-07): the station's protocol text is
+         logged, never shown. -->
+    <string name="login_invalid_credentials">Incorrect username or password</string>
+    <string name="login_badge_rejected">Badge not recognised. Log in with your username and password.</string>
+    <string name="login_not_connected">Not connected to the station</string>
+    <string name="login_timeout">Station 1 did not respond. Check the station and try again.</string>
+    <string name="login_refused">Login was refused by the station (%1$s). Ask a supervisor.</string>
+    <string name="login_failed_generic">Login failed. Try again.</string>
     <string name="title_log_in">Log In</string>
     <string name="hint_username">Username</string>
     <string name="hint_password">Password</string>
@@ -74,10 +88,19 @@
     <string name="exit_dialog_stay">Stay</string>
     <string name="logout_dialog_title">Log out?</string>
     <string name="logout_dialog_message">You\'ll need to log in again to continue.</string>
-    <string name="btn_log_out">Log Out</string>
+    <string name="btn_log_out">Log out</string>
     <string name="btn_cancel">Cancel</string>
 
     <!-- Settings -->
+    <string name="pin_prompt">Enter supervisor PIN to edit settings</string>
+    <string name="hint_pin">PIN</string>
+    <string name="btn_unlock">Unlock</string>
+    <string name="pin_blank">Enter the 6-digit PIN</string>
+    <plurals name="pin_attempts_left">
+        <item quantity="one">Incorrect PIN. 1 attempt left before lockout.</item>
+        <item quantity="other">Incorrect PIN. %d attempts left before lockout.</item>
+    </plurals>
+    <string name="pin_locked_out">Too many attempts. Try again in %1$ds.</string>
     <string name="section_diagnostics">Diagnostics</string>
     <string name="section_configuration">Configuration</string>
     <string name="section_broker">Broker</string>
@@ -94,11 +117,25 @@
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
     <string name="section_session_policy">Session</string>
-    <string name="hint_auto_logout_minutes">Auto sign-out after (minutes, 0 = never)</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out (minutes)</string>
+    <string name="helper_auto_logout_minutes">0 = never, up to 1440</string>
     <string name="error_auto_logout_minutes">Enter 0–1440</string>
+    <string name="error_host_required">Host required</string>
+    <string name="error_port_invalid">Invalid port (1–65535)</string>
+    <string name="error_credentials_required">Enter the broker username and password</string>
+    <string name="error_password_store">Could not store the password securely</string>
+    <!-- Test &amp; Apply (audit §5 "Settings action"): test in place, keep the session, confirm. -->
+    <string name="btn_test_apply">Test &amp; Apply</string>
+    <string name="apply_testing">Testing connection…</string>
+    <string name="apply_success">Connected — settings saved</string>
+    <string name="apply_failed">Saved, but could not connect to %1$s:%2$d. Check the broker settings.</string>
 
     <!-- Forced sign-out (spec §2, §3) -->
+    <string name="signed_out_session_ended">Your session ended. Sign in again.</string>
     <string name="signed_out_station_offline">Station went offline — you were signed out. Sign in again when the station is back online.</string>
-    <string name="signed_out_inactivity">Signed out after %1$d minutes of inactivity.</string>
+    <plurals name="signed_out_inactivity">
+        <item quantity="one">Signed out after 1 minute of inactivity.</item>
+        <item quantity="other">Signed out after %d minutes of inactivity.</item>
+    </plurals>
     <string name="login_station_offline_banner">Station is offline. Sign-in is unavailable until the station app is running.</string>
 </resources>

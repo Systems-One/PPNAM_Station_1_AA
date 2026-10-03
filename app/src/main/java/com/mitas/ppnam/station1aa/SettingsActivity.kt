@@ -1,17 +1,25 @@
 package com.mitas.ppnam.station1aa
 
-import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.MenuItem
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import androidx.activity.addCallback
-import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.textfield.TextInputLayout
 import com.mitas.ppnam.station1aa.databinding.ActivitySettingsBinding
 
+/**
+ * Supervisor settings behind a persisted PIN gate. "Test & Apply" (audit §5) validates the
+ * form, reconnects to the typed broker in place, reports the verdict inline and keeps the
+ * operator's session — nothing relaunches. Canonical for the XML stations (S3/S5 copy this).
+ */
 class SettingsActivity : SessionActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
+    private lateinit var settingsRepository: SettingsRepository
+    private lateinit var pinLockout: PinLockout
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread {
@@ -20,21 +28,42 @@ class SettingsActivity : SessionActivity() {
         }
     }
 
-    // Ported from Station 2's SettingsViewModel so both apps' supervisor lock behave identically.
-    private val correctPin = "079545"
-    private var failedPinAttempts = 0
-    private var lockedOutUntilMs = 0L
+    /** 1 s ticker while locked out: counts the message down and re-enables Unlock at the end. */
+    private val lockoutTicker = object : Runnable {
+        override fun run() { renderLockout() }
+    }
+
+    /** Test & Apply in flight: the one-shot connection listener, its deadline and what it tests. */
+    private var applyListener: ((Boolean) -> Unit)? = null
+    private var applySettings: BrokerSettings? = null
+    /** Set synchronously at entry to testAndApply; [applyListener] only exists after the async disconnect. */
+    private var applying = false
+    private val applyTimeout = Runnable {
+        finishApply(connected = false)
+        // A hung disconnect must never strand the handheld offline.
+        val mqtt = MqttManager.getInstance(this)
+        if (!mqtt.isConnected() && !mqtt.isConnectAttemptInFlight()) mqtt.connect()
+    }
+
+    /** Settings is also reachable from Login; it only needs a session if it was opened with one. */
+    override fun requiresSession(): Boolean = signedInAtCreate
+
+    private enum class ApplyState { IDLE, TESTING, SUCCESS, FAILED }
 
     private companion object {
-        const val MAX_PIN_ATTEMPTS = 5
-        const val PIN_LOCKOUT_MS = 30_000L
+        const val CORRECT_PIN = "079545"
+        const val KEY_UNLOCKED = "settings_unlocked"
+        /** Same window as AuthClient/WorkflowClient: one attempt, 10 s. */
+        const val APPLY_TIMEOUT_MS = 10_000L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyAppSystemBars()
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         forceLightStatusBarIcons()
+        binding.main.padForSystemBarsAndIme()
 
         setupToolbar()
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
@@ -43,7 +72,7 @@ class SettingsActivity : SessionActivity() {
         binding.tvDeviceId.text = DeviceIdentity.deviceId(this)
         setupSessionSection()
 
-        val settingsRepository = SettingsRepository(this)
+        settingsRepository = SettingsRepository(this)
         val current = settingsRepository.brokerSettings()
 
         binding.etBrokerHost.setText(current.host)
@@ -53,71 +82,25 @@ class SettingsActivity : SessionActivity() {
         binding.etBrokerUsername.setText(current.username)
         binding.etAutoLogout.setText(settingsRepository.autoLogoutMinutes().toString())
         // The password field stays empty: the stored credential is never echoed back into the UI.
-        // A blank field on save means "keep the provisioned password" (see save below).
+        // A blank field on apply means "keep the provisioned password" (see testAndApply).
 
         binding.btnUnlock.setOnClickListener { submitPin() }
-        binding.etPin.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                submitPin()
-                true
-            } else {
-                false
-            }
-        }
+        binding.etPin.setOnSubmit { submitPin() }
+        pinLockout = PinLockout(CORRECT_PIN, PrefsPinLockoutStore(this), System::currentTimeMillis)
+        // A lockout in progress must be visible (and Unlock disabled) the moment the screen opens,
+        // and an unlocked form must survive recreation without asking for the PIN again.
+        if (savedInstanceState?.getBoolean(KEY_UNLOCKED) == true) showUnlocked() else renderLockout()
 
-        binding.btnSaveSettings.setOnClickListener {
-            val host = binding.etBrokerHost.text.toString().trim()
-            val port = BrokerSettings.parsePort(binding.etBrokerPort.text.toString())
-            if (host.isBlank()) {
-                binding.etBrokerHost.error = "Host required"
-                return@setOnClickListener
-            }
-            if (port == null) {
-                binding.etBrokerPort.error = "Invalid port (1–65535)"
-                return@setOnClickListener
-            }
+        binding.btnSaveSettings.setOnClickListener { testAndApply() }
+        // Done on the last field applies (audit group b); Next chains through the ones above.
+        binding.etAutoLogout.setOnSubmit { testAndApply() }
 
-            val autoLogoutMinutes = AutoLogout.parseMinutes(binding.etAutoLogout.text.toString())
-            if (autoLogoutMinutes == null) {
-                binding.etAutoLogout.error = getString(R.string.error_auto_logout_minutes)
-                return@setOnClickListener
-            }
-            settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
-            SessionGuard.applyTimeout()
-
-            val typedPassword = binding.etBrokerPassword.text.toString()
-            val newSettings = BrokerSettings(
-                host = host,
-                port = port,
-                useWebSocket = binding.swBrokerWebSocket.isChecked,
-                useTls = binding.swBrokerTls.isChecked,
-                username = binding.etBrokerUsername.text.toString().trim(),
-                // Blank field keeps the already-provisioned password: the repository only
-                // writes a non-blank password to the Keystore.
-                password = typedPassword.ifBlank { settingsRepository.brokerSettings().password },
-            )
-
-            // 1. Properly disconnect from the OLD broker first
-            MqttManager.getInstance(this).disconnect {
-                runOnUiThread {
-                    // 2. Save the new settings after the old presence is offline
-                    if (!settingsRepository.save(newSettings)) {
-                        binding.etBrokerPassword.error = "Could not store the password securely"
-                        MqttManager.getInstance(this).connect()
-                        return@runOnUiThread
-                    }
-
-                    // 3. Reconnect against the new broker
-                    MqttManager.getInstance(this).connect()
-
-                    // Restart app to apply changes
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(intent)
-                    finish()
-                }
-            }
-        }
+        // A field error clears as soon as the supervisor edits that field.
+        clearErrorOnEdit(binding.tilBrokerHost)
+        clearErrorOnEdit(binding.tilBrokerPort)
+        clearErrorOnEdit(binding.tilBrokerUsername)
+        clearErrorOnEdit(binding.tilBrokerPassword)
+        clearErrorOnEdit(binding.tilAutoLogout)
 
         binding.btnUnlock.applyPressScaleFeedback()
         binding.btnSaveSettings.applyPressScaleFeedback()
@@ -131,34 +114,50 @@ class SettingsActivity : SessionActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
+    private fun clearErrorOnEdit(layout: TextInputLayout) {
+        layout.editText?.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) { layout.error = null }
+        })
+    }
+
+    // ---- Diagnostics -----------------------------------------------------------------------------
+
     /**
      * The Diagnostics card, mirroring Station 2's SettingsScreen: broker link and station
      * presence are separate failures with separate remedies, and the composite pill can only
-     * name one of them at a time — so both get their own row here.
+     * name one of them at a time — so both get their own row here. Row order (MQTT Broker,
+     * Station 1, Version, Device ID) is the suite standard (audit §5).
      */
     private fun updateDiagnostics(status: ConnectionStatus) {
         val green = getColor(R.color.success)
-        val blue = getColor(R.color.primary_action)
+        val amber = getColor(R.color.warning)
         val red = getColor(R.color.danger)
         val muted = getColor(R.color.text_muted)
 
+        // Same three words and colours as the top-bar pill (audit §5 "Pill vocabulary").
         when (status) {
             ConnectionStatus.CONNECTED, ConnectionStatus.STATION_OFFLINE ->
-                binding.pillBroker.setAppearance(green, "Connected")
+                binding.pillBroker.setAppearance(green, getString(R.string.status_connected))
             ConnectionStatus.RECONNECTING ->
-                binding.pillBroker.setAppearance(blue, "Reconnecting")
+                binding.pillBroker.setAppearance(amber, getString(R.string.status_reconnecting))
             ConnectionStatus.OFFLINE ->
-                binding.pillBroker.setAppearance(red, "Disconnected")
+                binding.pillBroker.setAppearance(red, getString(R.string.status_offline))
         }
 
         // With the broker down, the retained presence value is stale rather than false — saying
         // "offline" there would blame the station for the broker's fault.
         when (status) {
-            ConnectionStatus.CONNECTED -> binding.pillStation.setAppearance(green, "Online")
-            ConnectionStatus.STATION_OFFLINE -> binding.pillStation.setAppearance(blue, "Offline")
-            else -> binding.pillStation.setAppearance(muted, "Unknown")
+            ConnectionStatus.CONNECTED ->
+                binding.pillStation.setAppearance(green, getString(R.string.status_online))
+            ConnectionStatus.STATION_OFFLINE ->
+                binding.pillStation.setAppearance(amber, getString(R.string.status_offline))
+            else -> binding.pillStation.setAppearance(muted, getString(R.string.status_unknown))
         }
     }
+
+    // ---- Session card ----------------------------------------------------------------------------
 
     /**
      * The Session card, mirroring Station 2's: the home screen's operator label is one route to
@@ -174,49 +173,62 @@ class SettingsActivity : SessionActivity() {
         binding.tvSignedInAs.text =
             if (session.role.isNotBlank()) "${session.operatorName} · ${session.role}"
             else session.operatorName
-        binding.btnLogOut.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
-                .setTitle(getString(R.string.logout_dialog_title))
-                .setMessage(getString(R.string.logout_dialog_message))
-                .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
-                    AuthClient(this).logout {
-                        startActivity(Intent(this, LoginActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        })
-                        finish()
-                    }
-                }
-                .setNegativeButton(getString(R.string.btn_cancel), null)
-                .show()
+        binding.btnLogOut.setOnClickListener { showLogoutDialog() }
+    }
+
+    // ---- PIN gate --------------------------------------------------------------------------------
+
+    private fun submitPin() {
+        // Hardware Enter plus a tap (or a ticker race) can deliver two submits for one attempt;
+        // a locked-out field must not burn another attempt.
+        if (!binding.btnUnlock.isEnabled) return
+        when (val outcome = pinLockout.submit(binding.etPin.text.toString())) {
+            PinLockout.Outcome.Blank -> showErrorMessage(getString(R.string.pin_blank))
+            PinLockout.Outcome.Unlocked -> {
+                hidePinMessages()
+                binding.etPin.setText("")
+                showUnlocked()
+            }
+            is PinLockout.Outcome.Rejected -> {
+                binding.etPin.setText("")
+                showErrorMessage(
+                    resources.getQuantityString(
+                        R.plurals.pin_attempts_left, outcome.attemptsLeft, outcome.attemptsLeft,
+                    )
+                )
+            }
+            is PinLockout.Outcome.LockedOut -> {
+                binding.etPin.setText("")
+                renderLockout()
+            }
         }
     }
 
-    private fun submitPin() {
-        val now = System.currentTimeMillis()
-        if (now < lockedOutUntilMs) {
-            val remainingSec = (lockedOutUntilMs - now + 999) / 1_000
-            showLockoutMessage("Too many attempts. Try again in ${remainingSec}s.")
-            binding.etPin.setText("")
+    private fun showUnlocked() {
+        binding.cardPinLock.visibility = View.GONE
+        binding.groupSettingsFields.visibility = View.VISIBLE
+    }
+
+    /**
+     * Reflects the persisted lockout: message with the live countdown, field and Unlock disabled,
+     * re-armed every second until it expires (audit station1-16).
+     */
+    private fun renderLockout() {
+        mainHandler.removeCallbacks(lockoutTicker)
+        val remainingMs = pinLockout.remainingLockoutMs()
+        if (remainingMs <= 0L) {
+            binding.tvPinLockout.visibility = View.GONE
+            binding.etPin.isEnabled = true
+            binding.btnUnlock.isEnabled = true
             return
         }
-
-        if (binding.etPin.text.toString() == correctPin) {
-            failedPinAttempts = 0
-            hidePinMessages()
-            binding.cardPinLock.visibility = View.GONE
-            binding.groupSettingsFields.visibility = View.VISIBLE
-        } else {
-            binding.etPin.setText("")
-            failedPinAttempts++
-            if (failedPinAttempts >= MAX_PIN_ATTEMPTS) {
-                lockedOutUntilMs = now + PIN_LOCKOUT_MS
-                failedPinAttempts = 0
-                showLockoutMessage("Too many attempts. Try again in ${PIN_LOCKOUT_MS / 1_000}s.")
-            } else {
-                val left = MAX_PIN_ATTEMPTS - failedPinAttempts
-                showErrorMessage("Incorrect PIN. $left attempt${if (left == 1) "" else "s"} left before lockout.")
-            }
-        }
+        val seconds = ((remainingMs + 999) / 1_000).toInt()
+        binding.tvPinLockout.text = getString(R.string.pin_locked_out, seconds)
+        binding.tvPinLockout.visibility = View.VISIBLE
+        binding.tvPinError.visibility = View.GONE
+        binding.etPin.isEnabled = false
+        binding.btnUnlock.isEnabled = false
+        mainHandler.postDelayed(lockoutTicker, 1_000L)
     }
 
     private fun showErrorMessage(message: String) {
@@ -225,15 +237,136 @@ class SettingsActivity : SessionActivity() {
         binding.tvPinLockout.visibility = View.GONE
     }
 
-    private fun showLockoutMessage(message: String) {
-        binding.tvPinLockout.text = message
-        binding.tvPinLockout.visibility = View.VISIBLE
-        binding.tvPinError.visibility = View.GONE
-    }
-
     private fun hidePinMessages() {
         binding.tvPinError.visibility = View.GONE
         binding.tvPinLockout.visibility = View.GONE
+    }
+
+    // ---- Test & Apply ----------------------------------------------------------------------------
+
+    /**
+     * Validate, then: disconnect from the old broker (its retained presence goes offline), save,
+     * reconnect against the new values and wait for the verdict. Success and failure are both
+     * shown inline; the screen, the form and the operator's session all stay (audit static-06).
+     */
+    private fun testAndApply() {
+        if (applying) return // a test is already running
+
+        val host = binding.etBrokerHost.text.toString().trim()
+        if (host.isBlank()) return showFieldError(binding.tilBrokerHost, R.string.error_host_required)
+        val port = BrokerSettings.parsePort(binding.etBrokerPort.text.toString())
+            ?: return showFieldError(binding.tilBrokerPort, R.string.error_port_invalid)
+        val autoLogoutMinutes = AutoLogout.parseMinutes(binding.etAutoLogout.text.toString())
+            ?: return showFieldError(binding.tilAutoLogout, R.string.error_auto_logout_minutes)
+
+        val typedPassword = binding.etBrokerPassword.text.toString()
+        val newSettings = BrokerSettings(
+            host = host,
+            port = port,
+            useWebSocket = binding.swBrokerWebSocket.isChecked,
+            useTls = binding.swBrokerTls.isChecked,
+            username = binding.etBrokerUsername.text.toString().trim(),
+            // Blank field keeps the already-provisioned password: the repository only
+            // writes a non-blank password to the Keystore.
+            password = typedPassword.ifBlank { settingsRepository.brokerSettings().password },
+        )
+        // MqttManager.connect() refuses to dial without a credential and would never report
+        // back — say so here instead of letting the test time out.
+        if (!newSettings.hasBrokerCredential) {
+            return showFieldError(binding.tilBrokerPassword, R.string.error_credentials_required)
+        }
+
+        // Persist first: the disconnect below can outlive this screen, and the reconnect must
+        // dial the typed broker whether or not anyone is still looking.
+        settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
+        SessionGuard.applyTimeout()
+        if (!settingsRepository.save(newSettings)) {
+            return showFieldError(binding.tilBrokerPassword, R.string.error_password_store)
+        }
+
+        applying = true
+        applySettings = newSettings
+        showApplyState(ApplyState.TESTING, getString(R.string.apply_testing))
+        // Deadline starts now, so a hung disconnect cannot leave "Testing..." up forever.
+        mainHandler.postDelayed(applyTimeout, APPLY_TIMEOUT_MS)
+
+        val mqtt = MqttManager.getInstance(this)
+        // Properly disconnect from the OLD broker first (its retained presence goes offline).
+        mqtt.disconnect {
+            runOnUiThread {
+                // disconnect() cancelled reconnects: always reconnect, even if the screen is gone
+                // or the deadline already fired, or the handheld stays Offline.
+                if (isDestroyed || isFinishing || !applying) {
+                    mqtt.connect()
+                    return@runOnUiThread
+                }
+                // Reconnect against the new broker and wait for the verdict. addConnectionListener
+                // replays the current (disconnected) state synchronously - skip that first call.
+                var replayed = false
+                val listener: (Boolean) -> Unit = { connected ->
+                    if (!replayed) {
+                        replayed = true
+                    } else {
+                        runOnUiThread { finishApply(connected) }
+                    }
+                }
+                applyListener = listener
+                mqtt.addConnectionListener(listener)
+                // force: an attempt that was in flight against the old settings is abandoned,
+                // otherwise connect()'s isConnecting guard would swallow this one.
+                mqtt.connect(force = true)
+            }
+        }
+    }
+
+    private fun finishApply(connected: Boolean) {
+        if (!applying) return
+        applying = false
+        mainHandler.removeCallbacks(applyTimeout)
+        applyListener?.let { MqttManager.getInstance(this).removeConnectionListener(it) }
+        applyListener = null
+        val tested = applySettings
+        applySettings = null
+        if (isDestroyed || isFinishing) return
+        if (connected) {
+            showApplyState(ApplyState.SUCCESS, getString(R.string.apply_success))
+        } else {
+            showApplyState(
+                ApplyState.FAILED,
+                getString(R.string.apply_failed, tested?.host ?: "", tested?.port ?: 0),
+            )
+        }
+    }
+
+    private fun showApplyState(state: ApplyState, message: String) {
+        binding.layoutApplyStatus.visibility = if (state == ApplyState.IDLE) View.GONE else View.VISIBLE
+        binding.progressApply.visibility = if (state == ApplyState.TESTING) View.VISIBLE else View.GONE
+        binding.tvApplyStatus.text = message
+        binding.tvApplyStatus.setTextColor(
+            getColor(
+                when (state) {
+                    ApplyState.SUCCESS -> R.color.success
+                    ApplyState.FAILED -> R.color.danger
+                    else -> R.color.text_muted
+                }
+            )
+        )
+        binding.btnSaveSettings.isEnabled = state != ApplyState.TESTING
+        if (state != ApplyState.IDLE) binding.btnSaveSettings.post { binding.btnSaveSettings.scrollIntoView() }
+    }
+
+    /** Inline field error (not the floating EditText popup), focused and scrolled into view. */
+    private fun showFieldError(layout: TextInputLayout, messageRes: Int) {
+        layout.error = getString(messageRes)
+        layout.editText?.requestFocus()
+        layout.post { layout.scrollIntoView() }
+    }
+
+    // ---- lifecycle -------------------------------------------------------------------------------
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_UNLOCKED, binding.groupSettingsFields.visibility == View.VISIBLE)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -245,7 +378,11 @@ class SettingsActivity : SessionActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        mainHandler.removeCallbacks(lockoutTicker)
+        mainHandler.removeCallbacks(applyTimeout)
+        applyListener?.let { MqttManager.getInstance(this).removeConnectionListener(it) }
+        applyListener = null
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
+        super.onDestroy()
     }
 }

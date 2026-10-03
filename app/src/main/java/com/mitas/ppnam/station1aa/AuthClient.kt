@@ -20,9 +20,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   req/operator_list_requested -> res/operator_list (login dropdown, v3.2.0 §4.5)
  *
  * Every request carries the schema 4.1 envelope (Schema41). Responses are correlated on
- * inResponseToMessageId and branched on `accepted`/`errorCode` — free-text `reason` is shown
- * to the operator, never parsed. Envelope and routing failures arrive on res/request_rejected,
- * so every round trip listens there too.
+ * inResponseToMessageId and branched on `accepted`/`errorCode` — free-text `reason` is logged,
+ * never parsed and never shown (every failure is an [AuthFailure] the UI maps to its own copy).
+ * Envelope and routing failures arrive on res/request_rejected, so every round trip listens
+ * there too.
  *
  * Logout clears the local session regardless of the outcome: stranding an operator logged-in
  * because the network blipped would be worse than a server-side session that expires on its own.
@@ -51,17 +52,17 @@ class AuthClient(context: Context) {
             put("purpose", PURPOSE_LOGIN)
         }
 
-        request("scram_start_requested", "scram_challenge", startPayload) { startResult ->
+        request(AuthFailure.Step.SCRAM_START, "scram_start_requested", "scram_challenge", startPayload) { startResult ->
             val challenge = startResult.getOrElse { return@request onResult(Result.failure(it)) }
 
             val challengeId = challenge.optString("challengeId", "")
             val serverFirstMessage = challenge.optString("serverFirstMessage", "")
             val iterations = challenge.optInt("iterations", 0)
             if (challengeId.isBlank() || serverFirstMessage.isBlank()) {
-                return@request onResult(failure("Station sent an incomplete authentication challenge"))
+                return@request onResult(protocol("Station sent an incomplete authentication challenge"))
             }
             if (iterations <= 0) {
-                return@request onResult(failure("Station sent an invalid authentication challenge"))
+                return@request onResult(protocol("Station sent an invalid authentication challenge"))
             }
 
             // RFC 5802: the combined nonce must extend the one we sent. Anything else means this
@@ -71,7 +72,7 @@ class AuthClient(context: Context) {
                     it.startsWith(clientNonce) && it.length > clientNonce.length
                 }
                 ?: return@request onResult(
-                    failure("Station's authentication challenge did not match this device's request")
+                    protocol("Station's authentication challenge did not match this device's request")
                 )
 
             val clientFinalWithoutProof = ScramCrypto.clientFinalWithoutProof(serverNonce)
@@ -88,8 +89,8 @@ class AuthClient(context: Context) {
                 )
             } catch (e: Exception) {
                 // A malformed salt lands here. Deliberately not echoing the exception text, which
-                // would put challenge material into a user-facing string.
-                return@request onResult(failure("Station sent an unusable authentication challenge"))
+                // would put challenge material into a log line.
+                return@request onResult(protocol("Station sent an unusable authentication challenge"))
             }
 
             val proofPayload = Schema41.envelope(Schema41.newMessageId("auth-proof"), deviceId()).apply {
@@ -99,7 +100,7 @@ class AuthClient(context: Context) {
                 put("purpose", PURPOSE_LOGIN)
             }
 
-            request("scram_proof_requested", "scram_proof_result", proofPayload) { proofResult ->
+            request(AuthFailure.Step.SCRAM_PROOF, "scram_proof_requested", "scram_proof_result", proofPayload) { proofResult ->
                 val response = proofResult.getOrElse { return@request onResult(Result.failure(it)) }
 
                 // Mutual authentication. Without this check anything that can answer on the
@@ -108,7 +109,7 @@ class AuthClient(context: Context) {
                 val serverSignature = response.optString("serverSignature", "")
                 if (!ScramCrypto.verifyServerSignature(proof.expectedServerSignatureBase64, serverSignature)) {
                     return@request onResult(
-                        failure("Station failed authentication verification — this response is not trusted")
+                        protocol("Station failed authentication verification — this response is not trusted")
                     )
                 }
 
@@ -121,7 +122,7 @@ class AuthClient(context: Context) {
         val payload = Schema41.envelope(Schema41.newMessageId("badge-login"), deviceId()).apply {
             put("badgeTag", badgeTag)
         }
-        request("login_requested", "operator_context", payload) { result ->
+        request(AuthFailure.Step.BADGE_LOGIN, "login_requested", "operator_context", payload) { result ->
             onResult(result.fold({ buildSession(it) }, { Result.failure(it) }))
         }
     }
@@ -129,7 +130,7 @@ class AuthClient(context: Context) {
     /** Contract v3.2.0 §4.5: the display-only operator directory for the login dropdown. */
     fun operatorList(onResult: (Result<List<OperatorEntry>>) -> Unit) {
         val payload = Schema41.envelope(Schema41.newMessageId("operator-list"), deviceId())
-        request("operator_list_requested", "operator_list", payload) { result ->
+        request(AuthFailure.Step.OTHER, "operator_list_requested", "operator_list", payload) { result ->
             onResult(result.map { OperatorListCodec.fromResponse(it) })
         }
     }
@@ -151,11 +152,11 @@ class AuthClient(context: Context) {
         val sessionState = response.optString("sessionState", "")
         return when {
             operatorSessionId.isBlank() ->
-                failure("Station accepted the login but issued no session")
+                protocol("Station accepted the login but issued no session")
             // Accepting an already-closed session would strand the operator in a UI that
             // rejects every action.
             sessionState.equals("closed", ignoreCase = true) ->
-                failure("Station closed this session immediately")
+                protocol("Station closed this session immediately")
             else -> {
                 val session = OperatorSession(
                     operatorSessionId = operatorSessionId,
@@ -174,17 +175,20 @@ class AuthClient(context: Context) {
     /**
      * One schema 4.1 request/response round trip, with a timeout. The response is accepted only
      * when its inResponseToMessageId matches this request; rejections — on the response topic or
-     * on res/request_rejected — surface as failures carrying the station's sanitized reason.
+     * on res/request_rejected — surface as [AuthFailure]s classified by [step].
      * The callback fires exactly once, on the main thread.
      */
     private fun request(
+        step: AuthFailure.Step,
         requestType: String,
         responseType: String,
         payload: JSONObject,
         onResult: (Result<JSONObject>) -> Unit,
     ) {
         if (!mqtt.isConnected()) {
-            mainHandler.post { onResult(failure("Not connected to the station")) }
+            mainHandler.post {
+                onResult(Result.failure(AuthFailure(AuthFailure.Kind.NOT_CONNECTED, "Not connected to the broker")))
+            }
             return
         }
 
@@ -203,10 +207,13 @@ class AuthClient(context: Context) {
             mainHandler.removeCallbacks(timeoutRunnable)
             mqtt.unsubscribe(responseTopic, onResponse)
             mqtt.unsubscribe(rejectedTopic, onRejected)
+            result.exceptionOrNull()?.let { Log.w(TAG, "$requestType failed: ${it.message}") }
             mainHandler.post { onResult(result) }
         }
 
-        timeoutRunnable = Runnable { finish(failure("Station did not respond")) }
+        timeoutRunnable = Runnable {
+            finish(Result.failure(AuthFailure(AuthFailure.Kind.TIMEOUT, "$requestType: no response in ${REQUEST_TIMEOUT_MS} ms")))
+        }
 
         // With correlation, a message that isn't ours (wrong device, wrong messageId, or
         // unparseable) is ignored rather than failing the request — the timeout covers silence.
@@ -220,14 +227,21 @@ class AuthClient(context: Context) {
 
         onResponse = { publish ->
             parseCorrelated(publish)?.let { json ->
-                if (Schema41.isAccepted(json)) finish(Result.success(json))
-                else finish(failure(Schema41.rejectionMessage(json)))
+                if (Schema41.isAccepted(json)) {
+                    finish(Result.success(json))
+                } else {
+                    finish(Result.failure(
+                        AuthFailure.rejected(step, json.optString("errorCode", ""), json.optString("reason", ""))
+                    ))
+                }
             }
         }
 
         onRejected = { publish ->
             parseCorrelated(publish)?.let { json ->
-                finish(failure(Schema41.rejectionMessage(json)))
+                finish(Result.failure(
+                    AuthFailure.envelopeRejected(step, json.optString("errorCode", ""), json.optString("reason", ""))
+                ))
             }
         }
 
@@ -236,11 +250,14 @@ class AuthClient(context: Context) {
         mainHandler.postDelayed(timeoutRunnable, REQUEST_TIMEOUT_MS)
 
         mqtt.publish(MqttTopics.deviceRequest(device, requestType), payload.toString()) { throwable ->
-            if (throwable != null) finish(failure("Could not reach the station"))
+            if (throwable != null) {
+                finish(Result.failure(AuthFailure(AuthFailure.Kind.NOT_CONNECTED, "$requestType publish failed: ${throwable.message}")))
+            }
         }
     }
 
-    private fun failure(message: String): Result<Nothing> = Result.failure(Exception(message))
+    private fun protocol(detail: String): Result<Nothing> =
+        Result.failure(AuthFailure(AuthFailure.Kind.PROTOCOL, detail))
 }
 
 private fun org.json.JSONArray?.toStringList(): List<String> {

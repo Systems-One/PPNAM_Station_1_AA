@@ -35,7 +35,7 @@ object SessionGuard {
             cancel = { r -> mainHandler.removeCallbacks(r) },
             onExpired = {
                 val minutes = SettingsRepository(app).autoLogoutMinutes()
-                signOut(app.getString(R.string.signed_out_inactivity, minutes))
+                signOut(app.resources.getQuantityString(R.plurals.signed_out_inactivity, minutes, minutes))
             },
         )
 
@@ -86,6 +86,7 @@ object SessionGuard {
     /** Idempotent: a second trigger racing the first finds no session and does nothing. */
     fun signOut(reason: String) {
         if (OperatorSessionHolder.session == null) return
+        PendingSignedOutReason.set(reason)
         AuthClient(app).logout {
             app.startActivity(Intent(app, LoginActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

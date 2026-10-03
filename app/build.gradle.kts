@@ -18,8 +18,8 @@ android {
         applicationId = "com.mitas.ppnam.station1aa"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3.1"
+        versionCode = 5
+        versionName = "1.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -67,6 +67,11 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            // The Chainway DeviceAPI aar ships ARM-only .so files, which an x86_64 emulator
+            // refuses (INSTALL_FAILED_NO_MATCHING_ABIS). `-PemulatorNoJni` strips them for
+            // emulator-only verification builds; emulator scanning is driven by adb broadcasts,
+            // never by the SDK, so nothing on the emulator loads the library.
+            if (project.hasProperty("emulatorNoJni")) excludes += "**/*.so"
         }
         resources {
             excludes += "META-INF/INDEX.LIST"

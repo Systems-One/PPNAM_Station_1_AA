@@ -6,17 +6,22 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import androidx.activity.addCallback
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.doOnNextLayout
+import com.google.android.material.textfield.TextInputLayout
 import com.mitas.ppnam.station1aa.databinding.ActivityLoginBinding
 
 /**
  * Operator login, mirroring Station 2 AA's LoginScreen: username/password (SCRAM under the hood)
  * or an RFID badge scan, with the same connection pill and a Settings shortcut in the top bar.
  * This is the launcher activity — MainActivity requires a session.
+ *
+ * Canonical for the XML stations (S3/S5 copy this file): error line above the fields, password
+ * visibility toggle, "Please fill in all fields" client check, Log In kept above the keyboard,
+ * Enter submits, Back asks "Close the app?", every failure in operator wording.
  */
 class LoginActivity : AppCompatActivity() {
 
@@ -42,6 +47,7 @@ class LoginActivity : AppCompatActivity() {
     companion object {
         /** Why the operator landed here without asking to (spec §2-§3); shown as the error text. */
         const val EXTRA_SIGNED_OUT_REASON = "signed_out_reason"
+        private const val TAG = "LoginActivity"
     }
 
     /** Refresh the directory each time the broker link comes up (spec §4). */
@@ -68,9 +74,15 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
+        applyAppSystemBars()
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
         forceLightStatusBarIcons()
+        // Pad for the keyboard and, once it is up, bring Log In above it: the centred card left
+        // the button a 41 px sliver under the IME (audit station1-10).
+        binding.main.padForSystemBarsAndIme { imeVisible ->
+            if (imeVisible) binding.scrollLogin.doOnNextLayout { binding.btnLogin.scrollIntoView() }
+        }
 
         authClient = AuthClient(this)
         directory = OperatorDirectory(this)
@@ -79,14 +91,7 @@ class LoginActivity : AppCompatActivity() {
         MqttManager.getInstance(this).addConnectionListener(connectionListener)
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
-        binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                submitCredentials()
-                true
-            } else {
-                false
-            }
-        }
+        binding.etPassword.setOnSubmit { submitCredentials() }
 
         binding.btnSettings.setOnClickListener {
             startActivityForward(Intent(this, SettingsActivity::class.java))
@@ -94,12 +99,15 @@ class LoginActivity : AppCompatActivity() {
 
         binding.btnLogin.applyPressScaleFeedback()
 
-        intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() }
+        // The reason arrives as an extra when SessionGuard could start us itself; otherwise
+        // (background sign-out) it is waiting in PendingSignedOutReason. Always consume it.
+        val pendingReason = PendingSignedOutReason.take()
+        (intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() } ?: pendingReason)
             ?.let { showError(it) }
 
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.
-        onBackPressedDispatcher.addCallback(this) { showExitDialog() }
+        onBackPressedDispatcher.addCallback(this) { showExitAppDialog() }
     }
 
     override fun onResume() {
@@ -159,8 +167,23 @@ class LoginActivity : AppCompatActivity() {
             }
             .onFailure { e ->
                 setLoggingIn(false)
-                showError(e.message ?: "Login failed")
+                Log.w(TAG, "Login failed: ${e.message}")
+                showError(messageFor(e))
             }
+    }
+
+    /** Operator wording per failure kind; the station's text stays in logcat (station1-07). */
+    private fun messageFor(e: Throwable): String = when ((e as? AuthFailure)?.kind) {
+        AuthFailure.Kind.INVALID_CREDENTIALS -> getString(R.string.login_invalid_credentials)
+        AuthFailure.Kind.BADGE_REJECTED -> getString(R.string.login_badge_rejected)
+        AuthFailure.Kind.NOT_CONNECTED -> getString(R.string.login_not_connected)
+        AuthFailure.Kind.TIMEOUT -> getString(R.string.login_timeout)
+        AuthFailure.Kind.REJECTED -> {
+            val code = (e as AuthFailure).errorCode
+            if (code.isBlank()) getString(R.string.login_failed_generic)
+            else getString(R.string.login_refused, code)
+        }
+        else -> getString(R.string.login_failed_generic)
     }
 
     private fun setLoggingIn(inFlight: Boolean) {
@@ -177,6 +200,7 @@ class LoginActivity : AppCompatActivity() {
      * Dropdown rows read "username — Display Name"; username first so the adapter's prefix
      * filter narrows on what the operator types. Picking a row leaves only the username,
      * which is what SCRAM authenticates. Typing a name that is not listed still works.
+     * The dropdown arrow is only shown once there is a list to open (audit station1-19).
      */
     private fun showOperators(list: List<OperatorEntry>) {
         operators = list.sortedBy { it.displayName.lowercase() }
@@ -184,6 +208,17 @@ class LoginActivity : AppCompatActivity() {
         binding.etUsername.setAdapter(
             android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
         )
+        // Keep the dropdown delegate installed and only toggle visibility: swapping the mode
+        // left the arrow showing on an empty list.
+        binding.tilUsername.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+        binding.tilUsername.isEndIconVisible = operators.isNotEmpty()
+        // Hardware Enter must not pop an empty dropdown open; move on to the password instead.
+        binding.etUsername.setOnKeyListener { _, keyCode, event ->
+            if (operators.isEmpty() && keyCode == android.view.KeyEvent.KEYCODE_ENTER) {
+                if (event.action == android.view.KeyEvent.ACTION_UP) binding.etPassword.requestFocus()
+                true
+            } else false
+        }
         // An editable autocomplete does not open its list on tap, and an empty field filters
         // to nothing — so with a threshold of 0 we open it ourselves when the field is touched.
         binding.etUsername.setOnClickListener {
@@ -200,6 +235,8 @@ class LoginActivity : AppCompatActivity() {
     private fun showError(message: String) {
         binding.tvLoginError.text = message
         binding.tvLoginError.visibility = View.VISIBLE
+        // The line is above the fields; with the keyboard still up make sure it is on screen.
+        binding.tvLoginError.post { binding.tvLoginError.scrollIntoView() }
     }
 
     private fun goHome() {
@@ -208,15 +245,6 @@ class LoginActivity : AppCompatActivity() {
         }
         startActivity(intent)
         finish()
-    }
-
-    private fun showExitDialog() {
-        AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
-            .setTitle(getString(R.string.exit_dialog_title))
-            .setMessage(getString(R.string.exit_dialog_message))
-            .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }
-            .setNegativeButton(getString(R.string.exit_dialog_stay), null)
-            .show()
     }
 
     override fun onDestroy() {

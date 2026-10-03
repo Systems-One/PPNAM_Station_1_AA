@@ -1,17 +1,17 @@
 package com.mitas.ppnam.station1aa
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.enableEdgeToEdge
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.activity.addCallback
 import com.mitas.ppnam.station1aa.databinding.ActivityMainBinding
 
 class MainActivity : SessionActivity() {
 
     private lateinit var binding: ActivityMainBinding
+
+    /** One debouncer for the whole dashboard: a rapid double-tap opens one screen (station1-06). */
+    private val tileDebouncer = ClickDebouncer()
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread {
@@ -31,34 +31,33 @@ class MainActivity : SessionActivity() {
             return
         }
 
+        applyAppSystemBars()
         binding = ActivityMainBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
         setContentView(binding.root)
         forceLightStatusBarIcons()
+        binding.main.padForSystemBarsAndIme()
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
 
         setupDashboard()
 
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
+
+        // Back on the dashboard asks before leaving, exactly like Login (audit station1-05): on a
+        // shared handheld an accidental Back dropped the operator into the launcher unannounced.
+        onBackPressedDispatcher.addCallback(this) { showExitAppDialog() }
     }
 
     private fun setupDashboard() {
-        binding.tileTagAssignment.setOnClickListener {
+        binding.tileTagAssignment.setDebouncedClickListener(tileDebouncer) {
             startActivityForward(Intent(this, TagAssignmentActivity::class.java))
         }
 
-        binding.tileOffload.setOnClickListener {
+        binding.tileOffload.setDebouncedClickListener(tileDebouncer) {
             startActivityForward(Intent(this, OffloadActivity::class.java))
         }
 
-        binding.btnSettings.setOnClickListener {
+        binding.btnSettings.setDebouncedClickListener(tileDebouncer) {
             startActivityForward(Intent(this, SettingsActivity::class.java))
         }
 
@@ -86,22 +85,6 @@ class MainActivity : SessionActivity() {
         view.alpha = if (enabled) 1.0f else 0.5f
         view.isClickable = enabled
         view.isFocusable = enabled
-    }
-
-    private fun showLogoutDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
-            .setTitle(getString(R.string.logout_dialog_title))
-            .setMessage(getString(R.string.logout_dialog_message))
-            .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
-                AuthClient(this).logout {
-                    startActivity(Intent(this, LoginActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    })
-                    finish()
-                }
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
     }
 
     override fun onDestroy() {

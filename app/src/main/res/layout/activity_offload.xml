@@ -116,16 +116,48 @@
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <TextView
-                        android:id="@+id/tvScanStatus"
-                        android:layout_width="wrap_content"
+                    <!-- Status row like Station 3's: spinner while pending (audit station1-21),
+                         text, and an explicit Retry after a timeout/send failure (audit §5). -->
+                    <LinearLayout
+                        android:id="@+id/layoutScanStatus"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:textColor="@color/text_muted"
-                        android:textSize="15sp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
                         android:visibility="gone"
-                        tools:text="Tag and barcode match"
-                        tools:visibility="visible" />
+                        tools:visibility="visible">
+
+                        <ProgressBar
+                            android:id="@+id/progressScan"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="10dp"
+                            android:indeterminateTint="@color/accent_action"
+                            android:visibility="gone"
+                            tools:visibility="visible" />
+
+                        <TextView
+                            android:id="@+id/tvScanStatus"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/text_muted"
+                            android:textSize="15sp"
+                            tools:text="Tag and barcode match" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRetryScan"
+                            style="@style/Widget.SysOneScanner.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="@string/btn_retry"
+                            android:textColor="@color/text_primary"
+                            android:visibility="gone"
+                            app:strokeColor="@color/border_primary"
+                            tools:visibility="visible" />
+                    </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnMatchPallet"
@@ -190,6 +222,7 @@
                             android:id="@+id/etBagWeight"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:imeOptions="actionNext"
                             android:inputType="numberDecimal"
                             android:maxLines="1"
                             android:textColor="@color/text_primary_dark" />
@@ -209,6 +242,7 @@
                             android:id="@+id/etBagCount"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:imeOptions="actionNext"
                             android:inputType="number"
                             android:maxLines="1"
                             android:textColor="@color/text_primary_dark" />
@@ -228,21 +262,53 @@
                             android:id="@+id/etBatchRef"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:imeOptions="actionDone"
                             android:inputType="textCapCharacters|textNoSuggestions"
                             android:maxLines="1"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <TextView
-                        android:id="@+id/tvConfirmStatus"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:id="@+id/layoutConfirmStatus"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:textColor="@color/text_muted"
-                        android:textSize="15sp"
-                        android:visibility="gone"
-                        tools:text="Offload recorded"
-                        tools:visibility="visible" />
+                        android:gravity="center_vertical"
+                        android:minHeight="24dp"
+                        android:orientation="horizontal"
+                        android:visibility="invisible"
+                        tools:visibility="visible">
+
+                        <ProgressBar
+                            android:id="@+id/progressConfirm"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="10dp"
+                            android:indeterminateTint="@color/accent_action"
+                            android:visibility="gone"
+                            tools:visibility="visible" />
+
+                        <TextView
+                            android:id="@+id/tvConfirmStatus"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/text_muted"
+                            android:textSize="15sp"
+                            tools:text="Offload recorded" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRetryConfirm"
+                            style="@style/Widget.SysOneScanner.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="@string/btn_retry"
+                            android:textColor="@color/text_primary"
+                            android:visibility="gone"
+                            app:strokeColor="@color/border_primary"
+                            tools:visibility="visible" />
+                    </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnConfirmOffload"
@@ -255,7 +321,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnBackToScan"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        style="@style/Widget.SysOneScanner.Button.TextButton"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginTop="4dp"
