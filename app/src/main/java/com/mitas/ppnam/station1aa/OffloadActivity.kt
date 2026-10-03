@@ -226,6 +226,13 @@ class OffloadActivity : SessionActivity() {
 
     // ---- step 2: offload_confirm -------------------------------------------------------------
 
+    /** The keyboard must not stay up over the screen behind a dialog (audit station1-R03). */
+    private fun hideKeyboard() {
+        currentFocus?.clearFocus()
+        val imm = getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+        imm?.hideSoftInputFromWindow(binding.root.windowToken, 0)
+    }
+
     private fun confirmOffload() {
         if (step != Step.EDIT) return
         val document = currentDocument
@@ -237,6 +244,7 @@ class OffloadActivity : SessionActivity() {
         val batch = OffloadInput.parseBatch(binding.etBatchRef.text.toString())
             ?: return showConfirmStatus(getString(R.string.error_batch_required), R.color.danger)
 
+        hideKeyboard()
         step = Step.CONFIRMING
         binding.btnConfirmOffload.isEnabled = false
         showConfirmStatus(getString(R.string.status_sending), R.color.text_muted, pending = true)
@@ -297,6 +305,7 @@ class OffloadActivity : SessionActivity() {
      * to act as a silent "Next Pallet" (audit station1-17).
      */
     private fun showDonePrompt(document: OffloadDocument, scanned: Int, expected: Int) {
+        hideKeyboard()
         val message =
             if (scanned >= 0 && expected >= 0) {
                 getString(R.string.dialog_done_message, scanned, expected, document.documentNumber)
@@ -326,6 +335,7 @@ class OffloadActivity : SessionActivity() {
      * this dialog so the operator sees why they are being asked again (audit station1-08).
      */
     private fun showClosePrompt(document: OffloadDocument, reason: String? = null) {
+        hideKeyboard()
         val view = com.mitas.ppnam.station1aa.databinding.DialogOffloadCloseBinding
             .inflate(layoutInflater)
         val builder = neutralDialog()
