@@ -14,7 +14,9 @@ object EditorActions {
 
     enum class Result { SUBMIT, CONSUME, IGNORE }
 
-    fun classify(actionId: Int, keyCode: Int, keyAction: Int): Result {
+    fun classify(actionId: Int, keyCode: Int, keyAction: Int, repeatCount: Int = 0): Result {
+        // A held Enter auto-repeats key-downs; only the first press submits.
+        if (repeatCount > 0) return Result.CONSUME
         if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO) {
             return Result.SUBMIT
         }
@@ -30,7 +32,7 @@ fun TextView.setOnSubmit(action: () -> Unit) {
     setOnEditorActionListener { _, actionId, event ->
         val keyCode = event?.keyCode ?: KeyEvent.KEYCODE_UNKNOWN
         val keyAction = event?.action ?: -1
-        when (EditorActions.classify(actionId, keyCode, keyAction)) {
+        when (EditorActions.classify(actionId, keyCode, keyAction, event?.repeatCount ?: 0)) {
             EditorActions.Result.SUBMIT -> { action(); true }
             EditorActions.Result.CONSUME -> true
             EditorActions.Result.IGNORE -> false

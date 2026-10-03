@@ -36,6 +36,8 @@ class SettingsActivity : SessionActivity() {
     /** Test & Apply in flight: the one-shot connection listener, its deadline and what it tests. */
     private var applyListener: ((Boolean) -> Unit)? = null
     private var applySettings: BrokerSettings? = null
+    /** Set synchronously at entry to testAndApply; [applyListener] only exists after the async disconnect. */
+    private var applying = false
     private val applyTimeout = Runnable { finishApply(connected = false) }
 
     private enum class ApplyState { IDLE, TESTING, SUCCESS, FAILED }
@@ -168,6 +170,9 @@ class SettingsActivity : SessionActivity() {
     // ---- PIN gate --------------------------------------------------------------------------------
 
     private fun submitPin() {
+        // Hardware Enter plus a tap (or a ticker race) can deliver two submits for one attempt;
+        // a locked-out field must not burn another attempt.
+        if (!binding.btnUnlock.isEnabled) return
         when (val outcome = pinLockout.submit(binding.etPin.text.toString())) {
             PinLockout.Outcome.Blank -> showErrorMessage(getString(R.string.pin_blank))
             PinLockout.Outcome.Unlocked -> {
@@ -236,7 +241,7 @@ class SettingsActivity : SessionActivity() {
      * shown inline; the screen, the form and the operator's session all stay (audit static-06).
      */
     private fun testAndApply() {
-        if (applyListener != null) return // a test is already running
+        if (applying) return // a test is already running
 
         val host = binding.etBrokerHost.text.toString().trim()
         if (host.isBlank()) return showFieldError(binding.tilBrokerHost, R.string.error_host_required)
@@ -262,6 +267,7 @@ class SettingsActivity : SessionActivity() {
             return showFieldError(binding.tilBrokerPassword, R.string.error_credentials_required)
         }
 
+        applying = true
         applySettings = newSettings
         showApplyState(ApplyState.TESTING, getString(R.string.apply_testing))
 
@@ -269,11 +275,13 @@ class SettingsActivity : SessionActivity() {
         // 1. Properly disconnect from the OLD broker first
         mqtt.disconnect {
             runOnUiThread {
+                if (isDestroyed || isFinishing) { applying = false; return@runOnUiThread }
                 // 2. Save the new settings after the old presence is offline
                 settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
                 SessionGuard.applyTimeout()
                 if (!settingsRepository.save(newSettings)) {
                     applySettings = null
+                    applying = false
                     showApplyState(ApplyState.IDLE, "")
                     showFieldError(binding.tilBrokerPassword, R.string.error_password_store)
                     mqtt.connect()
@@ -301,10 +309,12 @@ class SettingsActivity : SessionActivity() {
     private fun finishApply(connected: Boolean) {
         val listener = applyListener ?: return
         applyListener = null
+        applying = false
         mainHandler.removeCallbacks(applyTimeout)
         MqttManager.getInstance(this).removeConnectionListener(listener)
         val tested = applySettings
         applySettings = null
+        if (isDestroyed || isFinishing) return
         if (connected) {
             showApplyState(ApplyState.SUCCESS, getString(R.string.apply_success))
         } else {

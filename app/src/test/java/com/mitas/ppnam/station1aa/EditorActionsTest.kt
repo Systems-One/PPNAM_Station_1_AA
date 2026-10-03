@@ -39,6 +39,14 @@ class EditorActionsTest {
     }
 
     @Test
+    fun `a repeated key-down from a held Enter does not submit again`() {
+        assertEquals(
+            EditorActions.Result.CONSUME,
+            EditorActions.classify(EditorInfo.IME_NULL, KeyEvent.KEYCODE_ENTER, KeyEvent.ACTION_DOWN, repeatCount = 1),
+        )
+    }
+
+    @Test
     fun `numpad Enter behaves like Enter`() {
         assertEquals(
             EditorActions.Result.SUBMIT,
