@@ -175,6 +175,11 @@ class LoginActivity : AppCompatActivity() {
         AuthFailure.Kind.BADGE_REJECTED -> getString(R.string.login_badge_rejected)
         AuthFailure.Kind.NOT_CONNECTED -> getString(R.string.login_not_connected)
         AuthFailure.Kind.TIMEOUT -> getString(R.string.login_timeout)
+        AuthFailure.Kind.REJECTED -> {
+            val code = (e as AuthFailure).errorCode
+            if (code.isBlank()) getString(R.string.login_failed_generic)
+            else getString(R.string.login_refused, code)
+        }
         else -> getString(R.string.login_failed_generic)
     }
 

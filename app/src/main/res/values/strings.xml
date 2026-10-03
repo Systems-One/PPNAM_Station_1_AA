@@ -75,6 +75,7 @@
     <string name="login_badge_rejected">Badge not recognised. Log in with your username and password.</string>
     <string name="login_not_connected">Not connected to the station</string>
     <string name="login_timeout">Station 1 did not respond. Check the station and try again.</string>
+    <string name="login_refused">Login was refused by the station (%1$s). Ask a supervisor.</string>
     <string name="login_failed_generic">Login failed. Try again.</string>
     <string name="title_log_in">Log In</string>
     <string name="hint_username">Username</string>
