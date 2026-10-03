@@ -90,6 +90,7 @@ class SettingsActivity : SessionActivity() {
         // A field error clears as soon as the supervisor edits that field.
         clearErrorOnEdit(binding.tilBrokerHost)
         clearErrorOnEdit(binding.tilBrokerPort)
+        clearErrorOnEdit(binding.tilBrokerUsername)
         clearErrorOnEdit(binding.tilBrokerPassword)
         clearErrorOnEdit(binding.tilAutoLogout)
 
