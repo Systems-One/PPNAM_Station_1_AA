@@ -208,9 +208,17 @@ class LoginActivity : AppCompatActivity() {
         binding.etUsername.setAdapter(
             android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
         )
-        binding.tilUsername.endIconMode =
-            if (operators.isEmpty()) TextInputLayout.END_ICON_NONE
-            else TextInputLayout.END_ICON_DROPDOWN_MENU
+        // Keep the dropdown delegate installed and only toggle visibility: swapping the mode
+        // left the arrow showing on an empty list.
+        binding.tilUsername.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+        binding.tilUsername.isEndIconVisible = operators.isNotEmpty()
+        // Hardware Enter must not pop an empty dropdown open; move on to the password instead.
+        binding.etUsername.setOnKeyListener { _, keyCode, event ->
+            if (operators.isEmpty() && keyCode == android.view.KeyEvent.KEYCODE_ENTER) {
+                if (event.action == android.view.KeyEvent.ACTION_UP) binding.etPassword.requestFocus()
+                true
+            } else false
+        }
         // An editable autocomplete does not open its list on tap, and an empty field filters
         // to nothing — so with a threshold of 0 we open it ourselves when the field is touched.
         binding.etUsername.setOnClickListener {
