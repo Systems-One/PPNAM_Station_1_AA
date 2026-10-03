@@ -268,29 +268,32 @@ class SettingsActivity : SessionActivity() {
             return showFieldError(binding.tilBrokerPassword, R.string.error_credentials_required)
         }
 
+        // Persist first: the disconnect below can outlive this screen, and the reconnect must
+        // dial the typed broker whether or not anyone is still looking.
+        settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
+        SessionGuard.applyTimeout()
+        if (!settingsRepository.save(newSettings)) {
+            return showFieldError(binding.tilBrokerPassword, R.string.error_password_store)
+        }
+
         applying = true
         applySettings = newSettings
         showApplyState(ApplyState.TESTING, getString(R.string.apply_testing))
+        // Deadline starts now, so a hung disconnect cannot leave "Testing..." up forever.
+        mainHandler.postDelayed(applyTimeout, APPLY_TIMEOUT_MS)
 
         val mqtt = MqttManager.getInstance(this)
-        // 1. Properly disconnect from the OLD broker first
+        // Properly disconnect from the OLD broker first (its retained presence goes offline).
         mqtt.disconnect {
             runOnUiThread {
-                if (isDestroyed || isFinishing) { applying = false; return@runOnUiThread }
-                // 2. Save the new settings after the old presence is offline
-                settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
-                SessionGuard.applyTimeout()
-                if (!settingsRepository.save(newSettings)) {
-                    applySettings = null
-                    applying = false
-                    showApplyState(ApplyState.IDLE, "")
-                    showFieldError(binding.tilBrokerPassword, R.string.error_password_store)
+                // disconnect() cancelled reconnects: always reconnect, even if the screen is gone
+                // or the deadline already fired, or the handheld stays Offline.
+                if (isDestroyed || isFinishing || !applying) {
                     mqtt.connect()
                     return@runOnUiThread
                 }
-
-                // 3. Reconnect against the new broker and wait for the verdict. addConnectionListener
-                //    replays the current (disconnected) state synchronously — skip that first call.
+                // Reconnect against the new broker and wait for the verdict. addConnectionListener
+                // replays the current (disconnected) state synchronously - skip that first call.
                 var replayed = false
                 val listener: (Boolean) -> Unit = { connected ->
                     if (!replayed) {
@@ -301,18 +304,17 @@ class SettingsActivity : SessionActivity() {
                 }
                 applyListener = listener
                 mqtt.addConnectionListener(listener)
-                mainHandler.postDelayed(applyTimeout, APPLY_TIMEOUT_MS)
                 mqtt.connect()
             }
         }
     }
 
     private fun finishApply(connected: Boolean) {
-        val listener = applyListener ?: return
-        applyListener = null
+        if (!applying) return
         applying = false
         mainHandler.removeCallbacks(applyTimeout)
-        MqttManager.getInstance(this).removeConnectionListener(listener)
+        applyListener?.let { MqttManager.getInstance(this).removeConnectionListener(it) }
+        applyListener = null
         val tested = applySettings
         applySettings = null
         if (isDestroyed || isFinishing) return
