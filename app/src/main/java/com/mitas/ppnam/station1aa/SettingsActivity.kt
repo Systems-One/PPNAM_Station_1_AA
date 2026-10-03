@@ -352,7 +352,7 @@ class SettingsActivity : SessionActivity() {
             )
         )
         binding.btnSaveSettings.isEnabled = state != ApplyState.TESTING
-        if (state != ApplyState.IDLE) binding.layoutApplyStatus.post { binding.layoutApplyStatus.scrollIntoView() }
+        if (state != ApplyState.IDLE) binding.btnSaveSettings.post { binding.btnSaveSettings.scrollIntoView() }
     }
 
     /** Inline field error (not the floating EditText popup), focused and scrolled into view. */
