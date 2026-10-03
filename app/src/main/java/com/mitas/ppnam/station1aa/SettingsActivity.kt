@@ -45,6 +45,9 @@ class SettingsActivity : SessionActivity() {
         if (!mqtt.isConnected() && !mqtt.isConnectAttemptInFlight()) mqtt.connect()
     }
 
+    /** Settings is also reachable from Login; it only needs a session if it was opened with one. */
+    override fun requiresSession(): Boolean = signedInAtCreate
+
     private enum class ApplyState { IDLE, TESTING, SUCCESS, FAILED }
 
     private companion object {
