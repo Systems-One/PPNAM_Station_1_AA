@@ -138,4 +138,5 @@
         <item quantity="other">Signed out after %d minutes of inactivity.</item>
     </plurals>
     <string name="login_station_offline_banner">Station is offline. Sign-in is unavailable until the station app is running.</string>
+    <string name="user_badge_not_item_tag">That is a user badge, not a pallet tag</string>
 </resources>

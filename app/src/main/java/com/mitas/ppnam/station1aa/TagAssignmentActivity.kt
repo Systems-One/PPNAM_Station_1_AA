@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import androidx.activity.addCallback
 import com.mitas.ppnam.station1aa.databinding.ActivityTagAssignmentBinding
 
@@ -41,6 +42,10 @@ class TagAssignmentActivity : SessionActivity() {
                 if (!data.isNullOrEmpty()) {
                     // See OffloadActivity: only a read this screen consumes counts as activity.
                     SessionGuard.touch()
+                    if (!UserTagPolicy.shouldForwardItemScan(data)) {
+                        Toast.makeText(context ?: this@TagAssignmentActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
+                        return
+                    }
                     onTagScanned(data)
                 }
             }
