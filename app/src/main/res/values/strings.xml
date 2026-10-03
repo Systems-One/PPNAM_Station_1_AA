@@ -127,7 +127,7 @@
     <string name="btn_test_apply">Test &amp; Apply</string>
     <string name="apply_testing">Testing connection…</string>
     <string name="apply_success">Connected — settings saved</string>
-    <string name="apply_failed">Could not connect to %1$s:%2$d. Check the broker settings.</string>
+    <string name="apply_failed">Saved, but could not connect to %1$s:%2$d. Check the broker settings.</string>
 
     <!-- Forced sign-out (spec §2, §3) -->
     <string name="signed_out_session_ended">Your session ended. Sign in again.</string>
