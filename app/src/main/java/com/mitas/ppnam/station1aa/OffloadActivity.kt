@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.appcompat.app.AlertDialog
 import com.mitas.ppnam.station1aa.databinding.ActivityOffloadBinding
@@ -62,6 +63,10 @@ class OffloadActivity : SessionActivity() {
                     // deadline for every matching intent would let a bare broadcast hold a
                     // session open indefinitely.
                     SessionGuard.touch()
+                    if (!UserTagPolicy.shouldForwardItemScan(data)) {
+                        Toast.makeText(context ?: this@OffloadActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
+                        return
+                    }
                     binding.etTag.setText(data)
                     updateMatchEnabled()
                 }
