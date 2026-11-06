@@ -39,15 +39,17 @@ class TagAssignmentActivity : SessionActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
                 val data = intent.getStringExtra("data")
-                if (!data.isNullOrEmpty()) {
-                    // See OffloadActivity: only a read this screen consumes counts as activity.
-                    SessionGuard.touch()
-                    if (!UserTagPolicy.shouldForwardItemScan(data)) {
-                        Toast.makeText(context ?: this@TagAssignmentActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
-                        return
-                    }
-                    onTagScanned(data)
+                val verdict = ScanSoundPolicy.classifyRead(data, accepting = true, isRfid = true)
+                if (verdict == ReadVerdict.IGNORE || data == null) return
+                // See OffloadActivity: only a read this screen consumes counts as activity.
+                SessionGuard.touch()
+                if (verdict == ReadVerdict.BADGE) {
+                    // Refused locally: the fail sound now. A taken read sounds on the station's answer.
+                    ScanFeedback.play(this@TagAssignmentActivity, verdict.sound)
+                    Toast.makeText(context ?: this@TagAssignmentActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
+                    return
                 }
+                onTagScanned(data)
             }
         }
     }
@@ -70,6 +72,7 @@ class TagAssignmentActivity : SessionActivity() {
 
         setupToolbar()
         workflow = WorkflowClient(this)
+        ScanFeedback.warmUp(this)
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
 
         binding.btnRetrySend.setOnClickListener { lastScannedTag?.let { onTagScanned(it) } }
@@ -135,6 +138,8 @@ class TagAssignmentActivity : SessionActivity() {
         ) { result ->
             // A newer scan owns the status line by now — its own result will drive the UI.
             if (tagId != lastScannedTag) return@request
+            // Suite rule S1: one sound, on the station's answer (or its failure).
+            ScanFeedback.play(this, ScanSoundPolicy.forTagScan(result))
             result
                 .onSuccess { json ->
                     if (json.optBoolean("accepted", false)) {
