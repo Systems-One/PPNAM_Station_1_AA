@@ -105,7 +105,7 @@
                         android:textColor="@color/danger"
                         android:textSize="15sp"
                         android:visibility="gone"
-                        tools:text="Incorrect username or password"
+                        tools:text="Incorrect username or password."
                         tools:visibility="visible" />
 
                     <com.google.android.material.textfield.TextInputLayout
