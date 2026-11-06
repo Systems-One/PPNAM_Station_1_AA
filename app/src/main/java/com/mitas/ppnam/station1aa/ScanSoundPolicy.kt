@@ -57,10 +57,18 @@ object ScanSoundPolicy {
 
     /**
      * A raw read: [accepting] is whether the screen takes reads right now; only RFID reads can
-     * be user badges (a barcode is never one).
+     * be user badges (a barcode is never one). [inFlight] is the value of this kind being sent:
+     * RFID readers fire several reads per trigger, and a repeat of it is the same scan (it
+     * sounds once, on its answer), not a refused one.
      */
-    fun classifyRead(data: String?, accepting: Boolean, isRfid: Boolean): ReadVerdict = when {
+    fun classifyRead(
+        data: String?,
+        accepting: Boolean,
+        isRfid: Boolean,
+        inFlight: String? = null,
+    ): ReadVerdict = when {
         data.isNullOrEmpty() -> ReadVerdict.IGNORE
+        !accepting && inFlight != null && data.trim() == inFlight.trim() -> ReadVerdict.IGNORE
         !accepting -> ReadVerdict.BLOCKED
         isRfid && UserTagPolicy.isUserTag(data) -> ReadVerdict.BADGE
         else -> ReadVerdict.TAKE
@@ -68,4 +76,18 @@ object ScanSoundPolicy {
 
     private fun accepted(json: JSONObject): ScanSound =
         if (json.optBoolean("accepted", false)) ScanSound.SUCCESS else ScanSound.FAIL
+}
+
+/**
+ * Tag Assignment sends a request per read, and one trigger can read the same tag several times;
+ * one station answer then completes all of those requests together. Only the newest request
+ * may sound, so a trigger sounds once — and a superseded scan never sounds over a newer one.
+ */
+class LatestRequestGate {
+    private var latest = 0L
+
+    /** Call when sending; keep the number with the request. */
+    fun next(): Long = ++latest
+
+    fun isLatest(request: Long): Boolean = request == latest
 }

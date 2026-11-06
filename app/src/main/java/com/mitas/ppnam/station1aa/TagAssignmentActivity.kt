@@ -24,6 +24,8 @@ class TagAssignmentActivity : SessionActivity() {
     private lateinit var binding: ActivityTagAssignmentBinding
     private lateinit var workflow: WorkflowClient
     private var lastScannedTag: String? = null
+    /** Repeat reads of one trigger each send a request; only the newest may sound. */
+    private val soundGate = LatestRequestGate()
 
     /** What the status row shows, kept so recreation can restore it (audit station1-09). */
     private var statusText: String? = null
@@ -125,6 +127,7 @@ class TagAssignmentActivity : SessionActivity() {
     }
 
     private fun sendTag(tagId: String) {
+        val request = soundGate.next()
         val payload = WorkflowMessages.tagScan(
             deviceId = DeviceIdentity.deviceId(this),
             operatorSessionId = OperatorSessionHolder.currentSessionIdOrEmpty(),
@@ -139,7 +142,7 @@ class TagAssignmentActivity : SessionActivity() {
             // A newer scan owns the status line by now — its own result will drive the UI.
             if (tagId != lastScannedTag) return@request
             // Suite rule S1: one sound, on the station's answer (or its failure).
-            ScanFeedback.play(this, ScanSoundPolicy.forTagScan(result))
+            if (soundGate.isLatest(request)) ScanFeedback.play(this, ScanSoundPolicy.forTagScan(result))
             result
                 .onSuccess { json ->
                     if (json.optBoolean("accepted", false)) {

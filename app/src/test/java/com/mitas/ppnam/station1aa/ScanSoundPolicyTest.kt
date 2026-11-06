@@ -141,12 +141,44 @@ class ScanSoundPolicyTest {
     }
 
     @Test
-    fun `a read while the screen is sending or editing is refused locally with a fail`() {
+    fun `a read while the screen is sending is refused locally with a fail`() {
         val read = ScanSoundPolicy.classifyRead("E2801170000002", accepting = false, isRfid = true)
         assertEquals(ReadVerdict.BLOCKED, read)
         assertEquals(ScanSound.FAIL, read.sound)
         assertEquals(ReadVerdict.BLOCKED, ScanSoundPolicy.classifyRead("BC-1", accepting = false, isRfid = false))
         assertEquals(ReadVerdict.BLOCKED, ScanSoundPolicy.classifyRead("505055ABCDEF", accepting = false, isRfid = true))
+    }
+
+    @Test
+    fun `a repeat read of the value in flight is the same scan and makes no sound`() {
+        // RFID readers fire several times per trigger; the pair being matched sounds once, on its answer.
+        assertEquals(
+            ReadVerdict.IGNORE,
+            ScanSoundPolicy.classifyRead(" E2801170000002", accepting = false, isRfid = true, inFlight = "E2801170000002"),
+        )
+        assertEquals(
+            ReadVerdict.BLOCKED,
+            ScanSoundPolicy.classifyRead("E2801170000099", accepting = false, isRfid = true, inFlight = "E2801170000002"),
+        )
+    }
+
+    @Test
+    fun `one trigger sending the same tag several times sounds once, for the newest request`() {
+        val gate = LatestRequestGate()
+        val first = gate.next()
+        val second = gate.next()
+        val third = gate.next()
+        // One station answer completes all three requests at once; only one may sound.
+        assertEquals(listOf(false, false, true), listOf(first, second, third).map { gate.isLatest(it) })
+    }
+
+    @Test
+    fun `a superseded request makes no sound once a newer scan is sent`() {
+        val gate = LatestRequestGate()
+        val old = gate.next()
+        val newer = gate.next()
+        assertEquals(false, gate.isLatest(old))
+        assertEquals(true, gate.isLatest(newer))
     }
 
     @Test

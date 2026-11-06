@@ -106,8 +106,13 @@ class OffloadActivity : SessionActivity() {
      * not scanning.
      */
     private fun classifyRead(data: String?, isRfid: Boolean): ReadVerdict =
-        if (step == Step.EDIT) ReadVerdict.IGNORE
-        else ScanSoundPolicy.classifyRead(data, accepting = step == Step.SCAN, isRfid = isRfid)
+        if (step == Step.EDIT) {
+            ReadVerdict.IGNORE
+        } else {
+            // While a pair is in flight its fields hold it: a repeat read of it is not a new scan.
+            val inFlight = (if (isRfid) binding.etTag else binding.etBarcode).text.toString()
+            ScanSoundPolicy.classifyRead(data, accepting = step == Step.SCAN, isRfid = isRfid, inFlight = inFlight)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
