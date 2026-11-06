@@ -21,24 +21,30 @@ import androidx.dynamicanimation.animation.SpringForce
 fun View.applyPressScaleFeedback(pressedScale: Float = 0.96f) {
     if (!ValueAnimator.areAnimatorsEnabled()) return
 
-    fun springTo(property: FloatPropertyCompat<View>, target: Float) {
-        SpringAnimation(this, property, target).apply {
-            spring = SpringForce(target).apply {
+    // ONE spring per axis, re-targeted with animateToFinalPosition. Starting a new
+    // SpringAnimation on every event left the press-down spring and the release spring running
+    // side by side on a quick tap; when the press-down one settled last the view stayed at 96%
+    // (visual critique 2026-11-06, P2-10: Log In, Match Pallet, Confirm Offload and Test & Apply
+    // all sat shrunk and out of line with the fields after being tapped).
+    fun spring(property: FloatPropertyCompat<View>) =
+        SpringAnimation(this, property, 1f).apply {
+            spring = SpringForce(1f).apply {
                 dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
                 stiffness = SpringForce.STIFFNESS_HIGH
             }
-        }.start()
-    }
+        }
+    val springX = spring(DynamicAnimation.SCALE_X)
+    val springY = spring(DynamicAnimation.SCALE_Y)
 
     setOnTouchListener { v, event ->
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                springTo(DynamicAnimation.SCALE_X, pressedScale)
-                springTo(DynamicAnimation.SCALE_Y, pressedScale)
+                springX.animateToFinalPosition(pressedScale)
+                springY.animateToFinalPosition(pressedScale)
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                springTo(DynamicAnimation.SCALE_X, 1f)
-                springTo(DynamicAnimation.SCALE_Y, 1f)
+                springX.animateToFinalPosition(1f)
+                springY.animateToFinalPosition(1f)
             }
         }
         // Let the view's normal click/ripple handling still run.

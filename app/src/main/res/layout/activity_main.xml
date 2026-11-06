@@ -64,7 +64,7 @@
                     android:layout_height="16dp"
                     android:contentDescription="Log out"
                     android:src="@drawable/ic_logout"
-                    app:tint="@color/primary_action" />
+                    app:tint="@color/brand_tint" />
 
                 <TextView
                     android:id="@+id/tvOperator"
@@ -162,7 +162,8 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 2. Offload -->
+            <!-- 2. Offload. Dark label like the tile's black icon: white on tile_teal is 1.85:1,
+                 window_background on it is 9.9:1 (visual critique 2026-11-06, P1-2). -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/tileOffload"
                 android:layout_width="0dp"
@@ -195,7 +196,7 @@
                         android:layout_marginTop="16dp"
                         android:text="@string/tab_offload"
                         android:textAlignment="center"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/window_background"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:letterSpacing="-0.01" />

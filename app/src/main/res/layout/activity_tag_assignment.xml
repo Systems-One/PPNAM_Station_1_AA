@@ -67,7 +67,11 @@
                         android:layout_width="80dp"
                         android:layout_height="80dp"
                         android:contentDescription="@string/tab_tag_assignment"
-                        android:src="@drawable/tag_assignment" />
+                        android:src="@drawable/tag_assignment"
+                        app:tint="@color/text_primary" />
+                    <!-- tint: the PNG is black line art, drawn for the bright dashboard tile; on this
+                         dark card it measured ~1.2:1 and the screen lost its only picture (visual
+                         critique 2026-11-06, P1-1). -->
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -116,9 +120,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:fontFamily="monospace"
                         android:text="@string/status_no_tag"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/text_muted"
                         android:textSize="18sp"
                         tools:text="E28011700000021B2F6E9827" />
 
@@ -161,7 +164,7 @@
                             android:text="@string/btn_retry"
                             android:textColor="@color/text_primary"
                             android:visibility="gone"
-                            app:strokeColor="@color/border_primary"
+                            app:strokeColor="@color/field_stroke"
                             tools:visibility="visible" />
                     </LinearLayout>
                 </LinearLayout>

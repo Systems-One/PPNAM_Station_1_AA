@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Outlined text-field stroke (visual critique 2026-11-06, P2-4). boxStrokeColor used to be the
+     single colour outline_dark: MDC then applies it to the FOCUSED state only and falls back to
+     mtrl_textinput_default_box_stroke_color (42% black) for every other state, which drew the
+     resting outline darker than the card (1.15:1) and the focused one at 1.35:1. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/border_primary" android:state_enabled="false" />
+    <item android:color="@color/brand_tint" android:state_focused="true" />
+    <item android:color="@color/text_muted" android:state_hovered="true" />
+    <item android:color="@color/field_stroke" />
+</selector>

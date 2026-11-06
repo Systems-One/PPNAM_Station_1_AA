@@ -94,7 +94,7 @@ class TagAssignmentActivity : SessionActivity() {
     private fun restoreState(saved: Bundle?) {
         if (saved == null) return
         lastScannedTag = saved.getString(KEY_LAST_TAG)
-        lastScannedTag?.let { binding.tvLastTag.text = it }
+        lastScannedTag?.let { showLastTag(it) }
         val text = saved.getString(KEY_STATUS_TEXT) ?: return
         if (saved.getBoolean(KEY_STATUS_PENDING)) {
             showStatus(getString(R.string.status_no_response), R.color.danger, retry = true)
@@ -115,7 +115,7 @@ class TagAssignmentActivity : SessionActivity() {
     private fun onTagScanned(tagId: String) {
         runOnUiThread {
             lastScannedTag = tagId
-            binding.tvLastTag.text = tagId
+            showLastTag(tagId)
             showStatus(getString(R.string.status_sending), R.color.text_muted, pending = true)
         }
         sendTag(tagId)
@@ -170,6 +170,14 @@ class TagAssignmentActivity : SessionActivity() {
         })
         finish()
         return true
+    }
+
+    /** The placeholder is muted sans; a real tag is primary monospace, so the empty state no
+     *  longer reads as scanned data (visual critique 2026-11-06, P3-12). */
+    private fun showLastTag(tagId: String) {
+        binding.tvLastTag.text = tagId
+        binding.tvLastTag.typeface = android.graphics.Typeface.MONOSPACE
+        binding.tvLastTag.setTextColor(getColor(R.color.text_primary))
     }
 
     private fun showStatus(

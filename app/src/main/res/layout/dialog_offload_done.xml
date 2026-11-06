@@ -23,17 +23,19 @@
         android:layout_marginTop="20dp"
         android:text="@string/btn_next_pallet"
         android:textColor="@android:color/white"
-        app:backgroundTint="@color/primary_action"
+        app:backgroundTint="@color/primary_button_bg"
         app:cornerRadius="14dp" />
 
-    <!-- Closing the document is the terminal action: success green, clearly not the default. -->
+    <!-- Closing the document is the terminal action: success green, clearly not the default.
+         Dark label: white on success is 2.1:1, window_background 8.3:1 (visual critique
+         2026-11-06, P1-2). -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnDoneClose"
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_marginTop="12dp"
         android:text="@string/btn_done"
-        android:textColor="@android:color/white"
+        android:textColor="@color/window_background"
         app:backgroundTint="@color/success"
         app:cornerRadius="14dp" />
 </LinearLayout>
