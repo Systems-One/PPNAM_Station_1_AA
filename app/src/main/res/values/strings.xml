@@ -110,7 +110,7 @@
     <string name="label_broker_tls">Use TLS</string>
     <string name="hint_broker_username">Username</string>
     <string name="hint_broker_password">Password</string>
-    <string name="section_session">Session</string>
+    <string name="section_session">Operator</string>
     <string name="label_mqtt_broker">MQTT Broker</string>
     <string name="label_station_row">Station 1</string>
     <string name="label_version">Version</string>

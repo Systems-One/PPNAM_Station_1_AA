@@ -68,7 +68,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/section_scan"
-                        android:textColor="@color/primary_action" />
+                        android:textColor="@color/brand_tint" />
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilTag"
@@ -77,7 +77,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:hint="@string/hint_tag_id"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:hintTextColor="@color/text_secondary_dark">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -100,7 +100,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:hint="@string/hint_barcode"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:hintTextColor="@color/text_secondary_dark">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -155,7 +155,7 @@
                             android:text="@string/btn_retry"
                             android:textColor="@color/text_primary"
                             android:visibility="gone"
-                            app:strokeColor="@color/border_primary"
+                            app:strokeColor="@color/field_stroke"
                             tools:visibility="visible" />
                     </LinearLayout>
 
@@ -166,7 +166,7 @@
                         android:layout_marginTop="12dp"
                         android:enabled="false"
                         android:text="@string/btn_match_pallet"
-                        app:backgroundTint="@color/primary_action"
+                        app:backgroundTint="@color/primary_button_bg"
                         app:cornerRadius="14dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -196,7 +196,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/section_pallet_values"
-                        android:textColor="@color/primary_action" />
+                        android:textColor="@color/brand_tint" />
 
                     <TextView
                         android:id="@+id/tvDocumentInfo"
@@ -215,7 +215,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:hint="@string/hint_bag_weight"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:hintTextColor="@color/text_secondary_dark">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -235,7 +235,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:hint="@string/hint_bag_count"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:hintTextColor="@color/text_secondary_dark">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -255,7 +255,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:hint="@string/hint_batch_ref"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:hintTextColor="@color/text_secondary_dark">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -306,7 +306,7 @@
                             android:text="@string/btn_retry"
                             android:textColor="@color/text_primary"
                             android:visibility="gone"
-                            app:strokeColor="@color/border_primary"
+                            app:strokeColor="@color/field_stroke"
                             tools:visibility="visible" />
                     </LinearLayout>
 
@@ -316,7 +316,7 @@
                         android:layout_height="56dp"
                         android:layout_marginTop="12dp"
                         android:text="@string/btn_confirm_offload"
-                        app:backgroundTint="@color/primary_action"
+                        app:backgroundTint="@color/primary_button_bg"
                         app:cornerRadius="14dp" />
 
                     <com.google.android.material.button.MaterialButton

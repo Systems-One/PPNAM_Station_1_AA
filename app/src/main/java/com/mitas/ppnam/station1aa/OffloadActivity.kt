@@ -47,6 +47,9 @@ class OffloadActivity : SessionActivity() {
     private var matchedBarcode = ""
     private var currentDocument: OffloadDocument? = null
 
+    /** The (tag, barcode) pair the visible scan status describes — see [ScanStatusPolicy]. */
+    private var scanStatusPair: Pair<String, String>? = null
+
     private val editStepErrors = setOf("INVALID_BAG_WEIGHT", "INVALID_BAG_COUNT", "BATCH_REFERENCE_REQUIRED")
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
@@ -99,8 +102,17 @@ class OffloadActivity : SessionActivity() {
         workflow = WorkflowClient(this)
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
 
-        binding.etTag.addTextChangedListener(SimpleTextWatcher { updateMatchEnabled() })
-        binding.etBarcode.addTextChangedListener(SimpleTextWatcher { updateMatchEnabled() })
+        // A rescan makes the previous pair's error stale (visual critique 2026-11-06, P2-8: a
+        // correct pair sat under "Pair mismatch." until Match Pallet was tapped again).
+        val onScanEdited = SimpleTextWatcher {
+            updateMatchEnabled()
+            if (step == Step.SCAN && ScanStatusPolicy.isStale(
+                    scanStatusPair, binding.etTag.text.toString(), binding.etBarcode.text.toString(),
+                )
+            ) hideScanStatus()
+        }
+        binding.etTag.addTextChangedListener(onScanEdited)
+        binding.etBarcode.addTextChangedListener(onScanEdited)
         // A validation message must not outlive the edit that fixes it (audit station1-11).
         val clearConfirmMessage = SimpleTextWatcher { if (step == Step.EDIT) hideConfirmStatus() }
         binding.etBagWeight.addTextChangedListener(clearConfirmMessage)
@@ -400,6 +412,11 @@ class OffloadActivity : SessionActivity() {
                 view.tvTagCountError.visibility = View.VISIBLE
                 return
             }
+            // The keyboard belongs to this dialog's window: close it here, or it stays up over
+            // the dashboard once the closed document finishes this screen (visual critique
+            // 2026-11-06, P3-13).
+            getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                ?.hideSoftInputFromWindow(view.etTagCount.windowToken, 0)
             dialog.dismiss()
             sendCompletion(document, status, statusLabel, count)
         }
@@ -499,6 +516,7 @@ class OffloadActivity : SessionActivity() {
         pending: Boolean = false,
         retry: Boolean = false,
     ) {
+        scanStatusPair = binding.etTag.text.toString().trim() to binding.etBarcode.text.toString().trim()
         binding.layoutScanStatus.visibility = View.VISIBLE
         binding.progressScan.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvScanStatus.text = message
@@ -507,6 +525,7 @@ class OffloadActivity : SessionActivity() {
     }
 
     private fun hideScanStatus() {
+        scanStatusPair = null
         binding.layoutScanStatus.visibility = View.GONE
         binding.progressScan.visibility = View.GONE
         binding.btnRetryScan.visibility = View.GONE

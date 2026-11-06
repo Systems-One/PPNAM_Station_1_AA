@@ -21,7 +21,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/hint_tag_count"
-        app:boxStrokeColor="@color/outline_dark"
+        app:boxStrokeColor="@color/text_field_stroke"
         app:hintTextColor="@color/text_secondary_dark">
 
         <com.google.android.material.textfield.TextInputEditText

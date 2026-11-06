@@ -13,6 +13,12 @@
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorOnSurfaceVariant">@color/text_muted</item>
         <item name="colorOutline">@color/border_primary</item>
+        <!-- Visual critique 2026-11-06, P2-7: Theme.Material3.DayNight still supplies its LIGHT
+             values for roles this theme did not name, so the dashboard tiles (M3 cards stroke
+             with colorOutlineVariant) wore a lavender #CAC4D0 outline, and the settings switches
+             a near-white #E6E0E9 track when OFF - louder than ON. -->
+        <item name="colorOutlineVariant">@color/border_primary</item>
+        <item name="materialSwitchStyle">@style/Widget.SysOneScanner.Switch</item>
 
         <!-- Primary / Accent -->
         <item name="colorPrimary">@color/primary_action</item>
@@ -52,6 +58,16 @@
         <item name="buttonBarPositiveButtonStyle">@style/Widget.SysOneScanner.Button.DialogButton</item>
         <item name="buttonBarNegativeButtonStyle">@style/Widget.SysOneScanner.Button.DialogButton</item>
         <item name="buttonBarNeutralButtonStyle">@style/Widget.SysOneScanner.Button.DialogButton</item>
+        <item name="alertDialogStyle">@style/Widget.SysOneScanner.AlertDialog</item>
+    </style>
+
+    <!-- Material 3 insets a dialog 80dp top AND bottom. With the keyboard up on the C72-sized
+         screen that left the tag-count dialog ~200dp, so its "Enter a whole number" error was laid
+         out 0px tall and an invalid count was refused silently (visual critique 2026-11-06,
+         P1-3). 24dp is Material's own inset for its picker dialogs. -->
+    <style name="Widget.SysOneScanner.AlertDialog" parent="MaterialAlertDialog.Material3">
+        <item name="backgroundInsetTop">24dp</item>
+        <item name="backgroundInsetBottom">24dp</item>
     </style>
 
     <!-- Positive action destroys something (closes the app, ends the session): red confirm. -->
@@ -64,8 +80,18 @@
         <item name="android:textAllCaps">false</item>
     </style>
 
+    <!-- danger_text, not danger: danger on the dialog surface is 3.3:1 (visual critique
+         2026-11-06, P2-9). -->
     <style name="Widget.SysOneScanner.Button.DialogButton.Destructive">
-        <item name="android:textColor">@color/danger</item>
+        <item name="android:textColor">@color/danger_text</item>
+    </style>
+
+    <!-- OFF reads as a quiet dark track with a muted thumb and outline; ON keeps Material's
+         brand-filled track (visual critique 2026-11-06, P2-7). -->
+    <style name="Widget.SysOneScanner.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="thumbTint">@color/switch_thumb</item>
+        <item name="trackTint">@color/switch_track</item>
+        <item name="trackDecorationTint">@color/switch_track_decoration</item>
     </style>
 
     <!-- Title Case everywhere: the MaterialComponents TextButton/OutlinedButton styles the

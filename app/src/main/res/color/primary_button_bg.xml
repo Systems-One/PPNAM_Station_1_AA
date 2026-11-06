@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary button fill with a real disabled state (visual critique 2026-11-06, P2-6). A plain
+     backgroundTint colour replaced Material's state list, so a disabled Match Pallet / Test &
+     Apply kept the full brand fill and only dimmed its label - it still looked tappable. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/border_primary" android:state_enabled="false" />
+    <item android:color="@color/primary_action" />
+</selector>

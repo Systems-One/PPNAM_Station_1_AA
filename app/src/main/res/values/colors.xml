@@ -12,6 +12,10 @@
     <!-- Border Colours -->
     <color name="border_primary">#25384C</color>
     <color name="border_soft">#1C2C3E</color>
+    <!-- Resting outline of text fields and ghost buttons (visual critique 2026-11-06, P2-4):
+         4.9:1 on card_background, 3.5:1 on the dialog surface - the 3:1 a control boundary needs.
+         border_primary (1.35:1) is a divider colour, not a control outline. -->
+    <color name="field_stroke">#7A8FA5</color>
 
     <!-- Text Colours -->
     <color name="text_primary">#EDF4FB</color>
@@ -29,6 +33,9 @@
     <color name="success">#2BC36D</color>
     <color name="warning">#F0A13A</color>
     <color name="danger">#E25C5C</color>
+    <!-- Visual critique 2026-11-06: danger as TEXT on the dialog surface (#283A4E) was 3.3:1;
+         this lighter red reads 4.9:1. Keep danger for fills, strokes and on-card text. -->
+    <color name="danger_text">#F28B8B</color>
     <color name="info">#2E77F5</color>
 
     <!-- Tinted Background Colours -->
