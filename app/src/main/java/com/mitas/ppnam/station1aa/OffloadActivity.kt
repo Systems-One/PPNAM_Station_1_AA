@@ -50,6 +50,9 @@ class OffloadActivity : SessionActivity() {
     /** The (tag, barcode) pair the visible scan status describes — see [ScanStatusPolicy]. */
     private var scanStatusPair: Pair<String, String>? = null
 
+    /** Suite rule S3: repeat reads of a value just refused locally stay silent. */
+    private val refusals = LocalRefusalDebounce(nowMs = android.os.SystemClock::elapsedRealtime)
+
     private val editStepErrors = setOf("INVALID_BAG_WEIGHT", "INVALID_BAG_COUNT", "BATCH_REFERENCE_REQUIRED")
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
@@ -62,14 +65,14 @@ class OffloadActivity : SessionActivity() {
                 val data = intent.getStringExtra("data")
                 when (classifyRead(data, isRfid = true)) {
                     ReadVerdict.IGNORE -> Unit
-                    ReadVerdict.BLOCKED -> ScanFeedback.fail(this@OffloadActivity)
+                    ReadVerdict.BLOCKED -> ScanFeedback.play(this@OffloadActivity, refusals.refuse(data.orEmpty()))
                     ReadVerdict.BADGE -> {
                         // Only a read this screen actually consumes counts as operator activity:
                         // the scanner action is an exported broadcast, so resetting the inactivity
                         // deadline for every matching intent would let a bare broadcast hold a
                         // session open indefinitely.
                         SessionGuard.touch()
-                        ScanFeedback.fail(this@OffloadActivity)
+                        ScanFeedback.play(this@OffloadActivity, refusals.refuse(data.orEmpty()))
                         Toast.makeText(context ?: this@OffloadActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
                     }
                     // A taken read only fills the field: it sounds on Match Pallet's answer.
@@ -88,7 +91,7 @@ class OffloadActivity : SessionActivity() {
             if (intent?.action == "com.scanner.broadcast") {
                 val data = intent.getStringExtra("data")
                 when (classifyRead(data, isRfid = false)) {
-                    ReadVerdict.BLOCKED -> ScanFeedback.fail(this@OffloadActivity)
+                    ReadVerdict.BLOCKED -> ScanFeedback.play(this@OffloadActivity, refusals.refuse(data.orEmpty()))
                     ReadVerdict.TAKE -> {
                         SessionGuard.touch()
                         binding.etBarcode.setText(data)

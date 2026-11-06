@@ -26,6 +26,8 @@ class TagAssignmentActivity : SessionActivity() {
     private var lastScannedTag: String? = null
     /** Repeat reads of one trigger each send a request; only the newest may sound. */
     private val soundGate = LatestRequestGate()
+    /** Suite rule S3: repeat reads of a badge just refused stay silent. */
+    private val refusals = LocalRefusalDebounce(nowMs = android.os.SystemClock::elapsedRealtime)
 
     /** What the status row shows, kept so recreation can restore it (audit station1-09). */
     private var statusText: String? = null
@@ -47,7 +49,7 @@ class TagAssignmentActivity : SessionActivity() {
                 SessionGuard.touch()
                 if (verdict == ReadVerdict.BADGE) {
                     // Refused locally: the fail sound now. A taken read sounds on the station's answer.
-                    ScanFeedback.play(this@TagAssignmentActivity, verdict.sound)
+                    ScanFeedback.play(this@TagAssignmentActivity, refusals.refuse(data))
                     Toast.makeText(context ?: this@TagAssignmentActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
                     return
                 }
