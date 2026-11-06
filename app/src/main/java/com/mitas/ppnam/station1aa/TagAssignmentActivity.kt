@@ -193,7 +193,13 @@ class TagAssignmentActivity : SessionActivity() {
         binding.layoutSendStatus.visibility = View.VISIBLE
         binding.progressSend.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvSendStatus.text = message
-        binding.tvSendStatus.setTextColor(getColor(colorRes))
+        // A refusal or failure gets a red panel, as on Station 3, instead of a bare red line
+        // (suite consistency C3). Text stays text_primary on it: danger on light_red is 3.99:1.
+        val error = colorRes == R.color.danger
+        val panelPadding = if (error) (12 * resources.displayMetrics.density).toInt() else 0
+        binding.layoutSendStatus.setBackgroundResource(if (error) R.drawable.bg_send_status_error else 0)
+        binding.layoutSendStatus.setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
+        binding.tvSendStatus.setTextColor(getColor(if (error) R.color.text_primary else colorRes))
         binding.btnRetrySend.visibility = if (retry) View.VISIBLE else View.GONE
     }
 

@@ -71,7 +71,7 @@
     <!-- Login / session -->
     <!-- Operator-facing login failures (audit station1-07): the station's protocol text is
          logged, never shown. -->
-    <string name="login_invalid_credentials">Incorrect username or password</string>
+    <string name="login_invalid_credentials">Incorrect username or password.</string>
     <string name="login_badge_rejected">Badge not recognised. Log in with your username and password.</string>
     <string name="login_not_connected">Not connected to the station</string>
     <string name="login_timeout">Station 1 did not respond. Check the station and try again.</string>
