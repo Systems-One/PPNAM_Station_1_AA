@@ -50,6 +50,9 @@ class OffloadActivity : SessionActivity() {
     /** The (tag, barcode) pair the visible scan status describes — see [ScanStatusPolicy]. */
     private var scanStatusPair: Pair<String, String>? = null
 
+    /** Suite rule S3: repeat reads of a value just refused locally stay silent. */
+    private val refusals = LocalRefusalDebounce(nowMs = android.os.SystemClock::elapsedRealtime)
+
     private val editStepErrors = setOf("INVALID_BAG_WEIGHT", "INVALID_BAG_COUNT", "BATCH_REFERENCE_REQUIRED")
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
@@ -60,18 +63,24 @@ class OffloadActivity : SessionActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
                 val data = intent.getStringExtra("data")
-                if (!data.isNullOrEmpty() && step == Step.SCAN) {
-                    // Only a read this screen actually consumes counts as operator activity:
-                    // the scanner action is an exported broadcast, so resetting the inactivity
-                    // deadline for every matching intent would let a bare broadcast hold a
-                    // session open indefinitely.
-                    SessionGuard.touch()
-                    if (!UserTagPolicy.shouldForwardItemScan(data)) {
+                when (classifyRead(data, isRfid = true)) {
+                    ReadVerdict.IGNORE -> Unit
+                    ReadVerdict.BLOCKED -> ScanFeedback.play(this@OffloadActivity, refusals.refuse(data.orEmpty()))
+                    ReadVerdict.BADGE -> {
+                        // Only a read this screen actually consumes counts as operator activity:
+                        // the scanner action is an exported broadcast, so resetting the inactivity
+                        // deadline for every matching intent would let a bare broadcast hold a
+                        // session open indefinitely.
+                        SessionGuard.touch()
+                        ScanFeedback.play(this@OffloadActivity, refusals.refuse(data.orEmpty()))
                         Toast.makeText(context ?: this@OffloadActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
-                        return
                     }
-                    binding.etTag.setText(data)
-                    updateMatchEnabled()
+                    // A taken read only fills the field: it sounds on Match Pallet's answer.
+                    ReadVerdict.TAKE -> {
+                        SessionGuard.touch()
+                        binding.etTag.setText(data)
+                        updateMatchEnabled()
+                    }
                 }
             }
         }
@@ -81,14 +90,32 @@ class OffloadActivity : SessionActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.scanner.broadcast") {
                 val data = intent.getStringExtra("data")
-                if (!data.isNullOrEmpty() && step == Step.SCAN) {
-                    SessionGuard.touch()
-                    binding.etBarcode.setText(data)
-                    updateMatchEnabled()
+                when (classifyRead(data, isRfid = false)) {
+                    ReadVerdict.BLOCKED -> ScanFeedback.play(this@OffloadActivity, refusals.refuse(data.orEmpty()))
+                    ReadVerdict.TAKE -> {
+                        SessionGuard.touch()
+                        binding.etBarcode.setText(data)
+                        updateMatchEnabled()
+                    }
+                    ReadVerdict.IGNORE, ReadVerdict.BADGE -> Unit
                 }
             }
         }
     }
+
+    /**
+     * Suite rule S1 for a raw read. A read while a request is in flight is refused locally (fail
+     * sound). The edit step ignores reads silently, as before: the operator is typing values,
+     * not scanning.
+     */
+    private fun classifyRead(data: String?, isRfid: Boolean): ReadVerdict =
+        if (step == Step.EDIT) {
+            ReadVerdict.IGNORE
+        } else {
+            // While a pair is in flight its fields hold it: a repeat read of it is not a new scan.
+            val inFlight = (if (isRfid) binding.etTag else binding.etBarcode).text.toString()
+            ScanSoundPolicy.classifyRead(data, accepting = step == Step.SCAN, isRfid = isRfid, inFlight = inFlight)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,6 +127,7 @@ class OffloadActivity : SessionActivity() {
 
         setupToolbar()
         workflow = WorkflowClient(this)
+        ScanFeedback.warmUp(this)
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
 
         // A rescan makes the previous pair's error stale (visual critique 2026-11-06, P2-8: a
@@ -215,6 +243,8 @@ class OffloadActivity : SessionActivity() {
             matches = { it.optString("tagId") == tagId && it.optString("barcode") == barcode },
         ) { result ->
             if (step != Step.MATCHING) return@request
+            // Suite rule S1: one sound, on the station's answer (or its failure).
+            ScanFeedback.play(this, ScanSoundPolicy.forOffloadScan(result))
             result
                 .onSuccess { json ->
                     if (json.optBoolean("matched", false)) {
@@ -284,6 +314,7 @@ class OffloadActivity : SessionActivity() {
             matches = { it.optString("tagId") == matchedTag && it.optString("barcode") == matchedBarcode },
         ) { result ->
             if (step != Step.CONFIRMING) return@request
+            ScanFeedback.play(this, ScanSoundPolicy.forOffloadConfirm(result))
             result
                 .onSuccess { json ->
                     when {

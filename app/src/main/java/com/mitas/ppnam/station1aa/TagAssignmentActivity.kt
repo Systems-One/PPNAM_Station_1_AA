@@ -24,6 +24,10 @@ class TagAssignmentActivity : SessionActivity() {
     private lateinit var binding: ActivityTagAssignmentBinding
     private lateinit var workflow: WorkflowClient
     private var lastScannedTag: String? = null
+    /** Repeat reads of one trigger each send a request; only the newest may sound. */
+    private val soundGate = LatestRequestGate()
+    /** Suite rule S3: repeat reads of a badge just refused stay silent. */
+    private val refusals = LocalRefusalDebounce(nowMs = android.os.SystemClock::elapsedRealtime)
 
     /** What the status row shows, kept so recreation can restore it (audit station1-09). */
     private var statusText: String? = null
@@ -39,15 +43,17 @@ class TagAssignmentActivity : SessionActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
                 val data = intent.getStringExtra("data")
-                if (!data.isNullOrEmpty()) {
-                    // See OffloadActivity: only a read this screen consumes counts as activity.
-                    SessionGuard.touch()
-                    if (!UserTagPolicy.shouldForwardItemScan(data)) {
-                        Toast.makeText(context ?: this@TagAssignmentActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
-                        return
-                    }
-                    onTagScanned(data)
+                val verdict = ScanSoundPolicy.classifyRead(data, accepting = true, isRfid = true)
+                if (verdict == ReadVerdict.IGNORE || data == null) return
+                // See OffloadActivity: only a read this screen consumes counts as activity.
+                SessionGuard.touch()
+                if (verdict == ReadVerdict.BADGE) {
+                    // Refused locally: the fail sound now. A taken read sounds on the station's answer.
+                    ScanFeedback.play(this@TagAssignmentActivity, refusals.refuse(data))
+                    Toast.makeText(context ?: this@TagAssignmentActivity, R.string.user_badge_not_item_tag, Toast.LENGTH_SHORT).show()
+                    return
                 }
+                onTagScanned(data)
             }
         }
     }
@@ -70,6 +76,7 @@ class TagAssignmentActivity : SessionActivity() {
 
         setupToolbar()
         workflow = WorkflowClient(this)
+        ScanFeedback.warmUp(this)
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
 
         binding.btnRetrySend.setOnClickListener { lastScannedTag?.let { onTagScanned(it) } }
@@ -122,6 +129,7 @@ class TagAssignmentActivity : SessionActivity() {
     }
 
     private fun sendTag(tagId: String) {
+        val request = soundGate.next()
         val payload = WorkflowMessages.tagScan(
             deviceId = DeviceIdentity.deviceId(this),
             operatorSessionId = OperatorSessionHolder.currentSessionIdOrEmpty(),
@@ -135,6 +143,8 @@ class TagAssignmentActivity : SessionActivity() {
         ) { result ->
             // A newer scan owns the status line by now — its own result will drive the UI.
             if (tagId != lastScannedTag) return@request
+            // Suite rule S1: one sound, on the station's answer (or its failure).
+            if (soundGate.isLatest(request)) ScanFeedback.play(this, ScanSoundPolicy.forTagScan(result))
             result
                 .onSuccess { json ->
                     if (json.optBoolean("accepted", false)) {
