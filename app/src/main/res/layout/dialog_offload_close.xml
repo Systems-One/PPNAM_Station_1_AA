@@ -5,8 +5,9 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingStart="24dp"
-    android:paddingEnd="24dp"
-    android:paddingBottom="16dp">
+    android:paddingEnd="24dp">
+    <!-- No bottom padding: the dialog's button bar already pads its top, and the two together
+         left ~65dp of dead space above Cancel (skill-run critique 2026-11-06, P3). -->
 
     <!-- One color per classification so the receipt outcome is unmistakable at a glance:
          Short = amber (fewer than expected), Complete = green, Over = red (more than expected).

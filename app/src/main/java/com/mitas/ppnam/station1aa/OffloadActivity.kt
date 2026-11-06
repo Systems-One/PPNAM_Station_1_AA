@@ -520,7 +520,7 @@ class OffloadActivity : SessionActivity() {
         binding.layoutScanStatus.visibility = View.VISIBLE
         binding.progressScan.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvScanStatus.text = message
-        binding.tvScanStatus.setTextColor(getColor(colorRes))
+        styleStatusRow(binding.layoutScanStatus, binding.tvScanStatus, colorRes)
         binding.btnRetryScan.visibility = if (retry) View.VISIBLE else View.GONE
     }
 
@@ -540,13 +540,28 @@ class OffloadActivity : SessionActivity() {
         binding.layoutConfirmStatus.visibility = View.VISIBLE
         binding.progressConfirm.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvConfirmStatus.text = message
-        binding.tvConfirmStatus.setTextColor(getColor(colorRes))
+        styleStatusRow(binding.layoutConfirmStatus, binding.tvConfirmStatus, colorRes)
         binding.btnRetryConfirm.visibility = if (retry) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * A refusal or failure ("Pair mismatch.", "Enter a bag weight greater than 0.", no response)
+     * gets the same red panel as Tag Assignment's send status, not a bare red line (suite
+     * consistency C3; skill-run critique 2026-11-06, P2-3). Text on it stays text_primary:
+     * danger on light_red is only 3.99:1. Progress and success lines stay plain.
+     */
+    private fun styleStatusRow(row: View, text: android.widget.TextView, colorRes: Int) {
+        val error = colorRes == R.color.danger
+        val panelPadding = if (error) (12 * resources.displayMetrics.density).toInt() else 0
+        row.setBackgroundResource(if (error) R.drawable.bg_send_status_error else 0)
+        row.setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
+        text.setTextColor(getColor(if (error) R.color.text_primary else colorRes))
     }
 
     /** INVISIBLE, not GONE: the row keeps its minHeight so Confirm Offload never jumps. */
     private fun hideConfirmStatus() {
         binding.layoutConfirmStatus.visibility = View.INVISIBLE
+        styleStatusRow(binding.layoutConfirmStatus, binding.tvConfirmStatus, R.color.text_muted)
         binding.progressConfirm.visibility = View.GONE
         binding.btnRetryConfirm.visibility = View.GONE
         binding.tvConfirmStatus.text = ""

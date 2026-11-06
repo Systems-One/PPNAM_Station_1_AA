@@ -251,7 +251,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilPin"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -276,7 +276,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="56dp"
                             android:layout_marginStart="12dp"
-                            android:text="@string/btn_unlock" />
+                            android:text="@string/btn_unlock"
+                            app:cornerRadius="14dp" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -316,7 +317,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerHost"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -336,7 +337,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerPort"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -371,7 +372,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerUsername"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -391,7 +392,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerPassword"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -422,7 +423,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilAutoLogout"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
