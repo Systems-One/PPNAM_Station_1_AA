@@ -118,7 +118,13 @@ class SettingsActivity : SessionActivity() {
         layout.editText?.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) { layout.error = null }
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if (layout.error == null) return
+                layout.error = null
+                // Release the error line's reserved height too, or a blank band stays under the
+                // field (skill-run critique 2026-11-06, P3). Setting an error re-enables it.
+                layout.isErrorEnabled = false
+            }
         })
     }
 

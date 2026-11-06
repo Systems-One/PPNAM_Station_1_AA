@@ -110,7 +110,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilUsername"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        style="@style/Widget.SysOneScanner.TextInputLayout.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_username"
@@ -131,7 +131,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilPassword"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.SysOneScanner.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"

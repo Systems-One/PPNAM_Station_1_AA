@@ -11,6 +11,7 @@ import android.view.View
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.doOnNextLayout
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.textfield.TextInputLayout
 import com.mitas.ppnam.station1aa.databinding.ActivityLoginBinding
 
@@ -35,6 +36,8 @@ class LoginActivity : AppCompatActivity() {
      *  start a second, concurrent login that could overwrite the just-established session. */
     private var loginInFlight = false
     private var loggedIn = false
+    /** The (username, password) the visible error was raised for; null when none shows. */
+    private var errorShownFor: Pair<String, String>? = null
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread {
@@ -92,6 +95,9 @@ class LoginActivity : AppCompatActivity() {
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
         binding.etPassword.setOnSubmit { submitCredentials() }
+        // Skill-run critique 2026-11-06 (P2-1): an error goes once the operator edits either field.
+        binding.etUsername.doAfterTextChanged { clearStaleError() }
+        binding.etPassword.doAfterTextChanged { clearStaleError() }
 
         binding.btnSettings.setOnClickListener {
             startActivityForward(Intent(this, SettingsActivity::class.java))
@@ -193,7 +199,7 @@ class LoginActivity : AppCompatActivity() {
         binding.etPassword.isEnabled = !inFlight
         binding.btnLogin.text = if (inFlight) "" else getString(R.string.btn_log_in)
         binding.progressLogin.visibility = if (inFlight) View.VISIBLE else View.GONE
-        if (inFlight) binding.tvLoginError.visibility = View.GONE
+        if (inFlight) hideError()
     }
 
     /**
@@ -235,8 +241,22 @@ class LoginActivity : AppCompatActivity() {
     private fun showError(message: String) {
         binding.tvLoginError.text = message
         binding.tvLoginError.visibility = View.VISIBLE
+        errorShownFor = currentInputs()
         // The line is above the fields; with the keyboard still up make sure it is on screen.
         binding.tvLoginError.post { binding.tvLoginError.scrollIntoView() }
+    }
+
+    private fun hideError() {
+        binding.tvLoginError.visibility = View.GONE
+        errorShownFor = null
+    }
+
+    private fun currentInputs(): Pair<String, String> =
+        binding.etUsername.text.toString() to binding.etPassword.text.toString()
+
+    private fun clearStaleError() {
+        val (username, password) = currentInputs()
+        if (LoginErrorPolicy.isStale(errorShownFor, username, password)) hideError()
     }
 
     private fun goHome() {

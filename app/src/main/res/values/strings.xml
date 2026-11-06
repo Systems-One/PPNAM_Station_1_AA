@@ -8,7 +8,7 @@
     <string name="status_station_offline">Station 1 offline</string>
     <string name="status_online">Online</string>
     <string name="status_unknown">Unknown</string>
-    <string name="error_fill_all_fields">Please fill in all fields</string>
+    <string name="error_fill_all_fields">Please fill in all fields.</string>
     <string name="message_sent">Sent</string>
     <string name="mqtt_init_failed">MQTT not initialised</string>
     <string name="mqtt_not_connected">MQTT not connected</string>
@@ -52,15 +52,15 @@
     <string name="hint_tag_count">Number of tags</string>
     <string name="dialog_tag_count_short_title">How many tags short?</string>
     <string name="dialog_tag_count_over_title">How many tags over?</string>
-    <string name="error_invalid_tag_count">Enter a whole number of tags, 1 or more</string>
+    <string name="error_invalid_tag_count">Enter a whole number, 1 or more.</string>
     <string name="msg_document_closed_tags">%1$s closed — %2$s (%3$d tags)</string>
     <string name="status_label_complete">Complete</string>
     <string name="status_label_over">Over</string>
     <string name="msg_document_closed">%1$s closed — %2$s</string>
-    <string name="error_incomplete_match">Station sent an incomplete match — try again</string>
-    <string name="error_invalid_weight">Enter a bag weight greater than 0</string>
-    <string name="error_invalid_count">Enter a whole number of bags greater than 0</string>
-    <string name="error_batch_required">Enter a batch reference</string>
+    <string name="error_incomplete_match">Station sent an incomplete match. Try again.</string>
+    <string name="error_invalid_weight">Enter a bag weight greater than 0.</string>
+    <string name="error_invalid_count">Enter a whole number of bags greater than 0.</string>
+    <string name="error_batch_required">Enter a batch reference.</string>
 
     <!-- Shared send states. Timeout wording and the explicit Retry follow Station 3 (audit §5). -->
     <string name="status_sending">Sending…</string>
@@ -73,7 +73,7 @@
          logged, never shown. -->
     <string name="login_invalid_credentials">Incorrect username or password.</string>
     <string name="login_badge_rejected">Badge not recognised. Log in with your username and password.</string>
-    <string name="login_not_connected">Not connected to the station</string>
+    <string name="login_not_connected">Not connected to the station.</string>
     <string name="login_timeout">Station 1 did not respond. Check the station and try again.</string>
     <string name="login_refused">Login was refused by the station (%1$s). Ask a supervisor.</string>
     <string name="login_failed_generic">Login failed. Try again.</string>

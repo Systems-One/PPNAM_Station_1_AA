@@ -72,7 +72,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilTag"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.SysOneScanner.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -95,7 +95,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilBarcode"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.SysOneScanner.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -210,7 +210,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilBagWeight"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.SysOneScanner.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -230,7 +230,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilBagCount"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.SysOneScanner.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -250,7 +250,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilBatchRef"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.SysOneScanner.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"

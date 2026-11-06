@@ -94,6 +94,18 @@
         <item name="trackDecorationTint">@color/switch_track_decoration</item>
     </style>
 
+    <!-- Text cursor. Material's field overlay sets colorControlActivated to colorPrimary, the
+         brand field blue: 2.0:1 on the card and 1.45:1 on the dialog surface, so the caret in
+         every field was near invisible (skill-run critique 2026-11-06, P2-2). brand_tint is
+         8.3:1 / 5.9:1 and is already the focused outline colour. -->
+    <style name="Widget.SysOneScanner.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="cursorColor">@color/brand_tint</item>
+    </style>
+
+    <style name="Widget.SysOneScanner.TextInputLayout.ExposedDropdownMenu" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+        <item name="cursorColor">@color/brand_tint</item>
+    </style>
+
     <!-- Title Case everywhere: the MaterialComponents TextButton/OutlinedButton styles the
          layouts used to reference upper-case their labels ("BACK TO SCAN", "LOG OUT"). -->
     <style name="Widget.SysOneScanner.Button.TextButton" parent="Widget.Material3.Button.TextButton">
