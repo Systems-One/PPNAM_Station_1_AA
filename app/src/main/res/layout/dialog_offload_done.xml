@@ -15,14 +15,15 @@
         android:textColor="@color/text_primary"
         android:textSize="16sp" />
 
-    <!-- Continue scanning is the everyday action: primary blue. -->
+    <!-- Continue scanning is the everyday action: primary blue. No textColor override, so the
+         theme's label state list dims it when the button is disabled (all pallets recorded),
+         the same as Match Pallet. -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnNextPallet"
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_marginTop="20dp"
         android:text="@string/btn_next_pallet"
-        android:textColor="@android:color/white"
         app:backgroundTint="@color/primary_button_bg"
         app:cornerRadius="14dp" />
 
