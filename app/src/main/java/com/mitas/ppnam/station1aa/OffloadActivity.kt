@@ -368,6 +368,9 @@ class OffloadActivity : SessionActivity() {
             .setView(view.root)
             .setCancelable(false)
             .show()
+        // Every expected pallet is recorded (e.g. 2 of 2): there is no next pallet, so only
+        // Done remains. Unknown progress (-1) leaves the button enabled.
+        view.btnNextPallet.isEnabled = !(expected > 0 && scanned >= expected)
         view.btnNextPallet.setOnClickListener { dialog.dismiss() }
         view.btnDoneClose.setOnClickListener {
             dialog.dismiss()
