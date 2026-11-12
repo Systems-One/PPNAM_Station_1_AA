@@ -6,14 +6,14 @@ mark: "1"
 accent: "#1B4DA0"
 accent_tint: "#9FBBE6"
 icon: images/icon.png
-version: 1.5.1
+version: 1.5.2
 date: 2026-11-12
 device: Chainway C72
 standfirst: >-
   How to assign RFID tags to pallets, offload pallets against their purchase
   order or stock transfer, close the document, and what to do when Station 1
   refuses a scan.
-description: Standard operating procedure for the PPNAM Station 1 goods-receiving handheld app 1.5.1 on the Chainway C72.
+description: Standard operating procedure for the PPNAM Station 1 goods-receiving handheld app 1.5.2 on the Chainway C72.
 crop: {top: 72, bottom: 126}
 revisions:
   - version: Rev. B
@@ -25,6 +25,9 @@ revisions:
   - version: 1.5.1
     date: 2026-11-12
     change: "Offload: one dialog after every pallet with a large pallet count. Next Pallet until the count is reached, then Complete. No Done step and no Cancel. Short Tags and Over Tags renamed Too Little Tags and Too Many Tags."
+  - version: 1.5.2
+    date: 2026-11-12
+    change: "Offload: the dialog shows only the choices that are valid at the pallet count (Next Pallet and Too Many Tags until the count is reached, then Complete and Too Little Tags). A recorded Too Little Tags or Too Many Tags report returns to the home screen. Batch Reference is read-only."
 ---
 
 <!-- Screenshots: v1.5.0 (8) debug build of master on the c72_clone emulator, against
@@ -32,7 +35,9 @@ revisions:
      refusal wording was set to the Station 1 desktop's own text. Operators, tags, barcodes,
      PO-000123 and PO-000200 are simulator demo data.
      1.5.1 (9): 26, 27, 28, 30 and 40 were recaptured for the new Offload dialog; the other
-     screens are unchanged since 1.5.0. -->
+     screens are unchanged since 1.5.0.
+     1.5.2 (10): 24, 26, 27, 30 and 40 were recaptured and 32 added (valid-choices dialog,
+     reported-and-home, read-only batch). -->
 
 # Purpose and scope {#purpose}
 
@@ -41,9 +46,9 @@ The Station 1 app runs on the Chainway C72 handheld in goods receiving. Receivin
 ## What it does
 
 - Sends each scanned RFID tag to Station 1, which assigns it to the next prepared pallet and says whether it accepted the tag.
-- Checks that a pallet's RFID tag and barcode belong together, then shows the pallet's expected bag weight, bag count and batch reference for you to confirm or correct.
+- Checks that a pallet's RFID tag and barcode belong together, then shows the pallet's expected bag weight, bag count and batch reference for you to check. You can correct the weight and the bag count.
 - Shows which document the pallet belongs to and how many of its pallets are in (for example *PO-000123 · 5 of 12 pallets*).
-- Closes the document as **Too Little Tags**, **Complete** or **Too Many Tags** when you are done.
+- Closes the document as **Complete**, or reports **Too Little Tags** or **Too Many Tags** to Station 1, when you are done.
 
 ## What it does not do
 
@@ -249,12 +254,13 @@ If Station 1 refuses the pair you hear the fail buzz and its reason appears in a
 ::: step Check the pallet values
 label: Step 3
 shot: 24_offload_matched.png
-caption: Matched. The values come from Station 1; correct them if the pallet differs.
+caption: Matched. The values come from Station 1; correct the weight or bag count if the pallet differs.
 alt: PALLET VALUES card "PO-000123 · 5 of 12 pallets" with Bag Weight (kg) 25, Number of Bags 40, Batch Reference BATCH-A, Confirm Offload and Back to Scan
 On a match you hear the success chirp and the **Pallet Values** card opens. Its heading shows the document and its progress, for example *PO-000123 · 5 of 12 pallets*.
 
-1. Check **Bag Weight (kg)**, **Number of Bags** and **Batch Reference** against the pallet. Correct any value that differs.
-2. Tap **Confirm Offload**, or press Done on the keyboard in **Batch Reference**.
+1. Check **Bag Weight (kg)** and **Number of Bags** against the pallet. Correct either if it differs.
+2. Check **Batch Reference** against the label. You cannot change it on the handheld: if it is wrong, tap **Back to Scan**, set the pallet aside and tell your supervisor.
+3. Tap **Confirm Offload**, or press Done on the keyboard in **Number of Bags**.
 
 **Back to Scan** leaves this pallet without recording it and keeps the scanned tag and barcode. Scans are ignored while this card is open.
 :::
@@ -263,7 +269,7 @@ On a match you hear the success chirp and the **Pallet Values** card opens. Its 
 shot: 25_offload_validation.png
 caption: Fix the value; the message clears as you type.
 alt: Bag Weight 0 and a red panel "Enter a bag weight greater than 0."
-The app refuses an impossible value before sending it: *Enter a bag weight greater than 0.*, *Enter a whole number of bags greater than 0.* or *Enter a batch reference.* Station 1 can also refuse a value, for example *Bag count is too large for the confirmed bag weight.* Either way you stay on the card: fix the value and tap **Confirm Offload** again.
+The app refuses an impossible value before sending it: *Enter a bag weight greater than 0.* or *Enter a whole number of bags greater than 0.* Station 1 can also refuse a value, for example *Bag count is too large for the confirmed bag weight.* Either way you stay on the card: fix the value and tap **Confirm Offload** again.
 
 If Station 1 does not answer, the panel shows a **Retry** button. Your values are kept.
 :::
@@ -272,13 +278,15 @@ If Station 1 does not answer, the panel shows a **Retry** button. Your values ar
 label: Step 4
 shot: 26_offload_recorded_dialog.png
 caption: The large number is this document's pallet count. Next Pallet carries on.
-alt: Pallet recorded dialog with a large "6 of 12" above "pallets offloaded against PO-000123" and the buttons Too Little Tags (amber), Next Pallet (blue) and Too Many Tags (red)
+alt: Pallet recorded dialog with a large "6 of 12" above "pallets offloaded against PO-000123" and the buttons Next Pallet (blue) and Too Many Tags (red)
 Station 1 records the pallet, you hear the success chirp, and the boxes clear. A dialog shows the new count in large figures, for example **6 of 12**, with *pallets offloaded against PO-000123* under it.
 
 While pallets are still expected the dialog is headed *Pallet recorded*:
 
 - **Next Pallet**: carry on with the next pallet on the truck. This is the everyday choice.
-- **Too Little Tags** and **Too Many Tags**: only when the delivery is finished and the tags did not match the pallets. See step 5.
+- **Too Many Tags**: only when the truck is empty and prepared pallets did not arrive, so tags are left over. See step 5.
+
+**Complete** and **Too Little Tags** are not offered yet: Station 1 only takes them once every expected pallet is in.
 
 There is no Cancel, and the dialog does not close on Back or a tap outside it: choose one.
 :::
@@ -288,15 +296,18 @@ There is no Cancel, and the dialog does not close on Back or a tap outside it: c
 ::: step When the count is reached
 label: Step 5
 shot: 27_offload_close_sheet.png
-caption: Every expected pallet is in. Complete has taken the place of Next Pallet.
-alt: Close PO-000200 as… dialog with a large "2 of 2" above "pallets offloaded against PO-000200" and the buttons Too Little Tags (amber), Complete (green) and Too Many Tags (red)
-When the last expected pallet is recorded, for example **2 of 2**, the dialog is headed *Close PO-000200 as…* and **Complete** takes the place of **Next Pallet**. Choose what is physically true:
+caption: Every expected pallet is in. The choices are now Too Little Tags and Complete.
+alt: Close PO-000200 as… dialog with a large "2 of 2" above "pallets offloaded against PO-000200" and the buttons Too Little Tags (amber) and Complete (green)
+The dialog only shows the choices that are possible at the current count.
+
+When the last expected pallet is recorded, for example **2 of 2**, the dialog is headed *Close PO-000200 as…*. Choose what is physically true:
 
 - **Complete**: every pallet that arrived has been offloaded, and the tags matched the pallets. The document closes straight away.
 - **Too Little Tags**: there were **too few tags**: pallets arrived that have no tag yet.
-- **Too Many Tags**: there are **tags left over**: fewer pallets arrived than were prepared.
 
-**Too Little Tags** and **Too Many Tags** are on the dialog after every pallet, so you can also report them before the count is reached, for example when the truck is empty at 10 of 12.
+Before the count is reached, for example when the truck is empty at 10 of 12, the one closing choice is:
+
+- **Too Many Tags**: there are **tags left over**: fewer pallets arrived than were prepared.
 :::
 
 ::: step Say how many tags
@@ -315,13 +326,22 @@ alt: Home screen with the message "PO-000123 closed — Complete"
 When Station 1 closes the document, the app returns to the home screen with *PO-000123 closed — Complete* (for Too Little Tags or Too Many Tags it adds the number, for example *(3 tags)*). Closing makes no scan sound.
 :::
 
-::: step When Station 1 keeps the document open
-shot: 30_offload_close_refused.png
-caption: A Too Little Tags report is recorded, but the receipt stays open for the desktop.
-alt: Close PO-000200 as… dialog with Station 1's message "Tag shortage recorded: 3 additional pallet(s). … The receipt remains open." above the count 2 of 2, the three choices and Back to Scan
-Station 1 may answer with a reason instead of closing. The dialog opens again with that reason at the top, and the same reason stays on the Offload screen.
+::: step After a Too Little Tags or Too Many Tags report
+shot: 32_offload_reported.png
+caption: Reported. The app returns to the home screen; the receipt stays open for the desktop.
+alt: Home screen with the message "PO-000200 — Too Little Tags reported (3 tags)"
+Station 1 records a Too Little Tags or Too Many Tags report and keeps the receipt open until a supervisor resolves it on the desktop. Your part is done: the app returns to the home screen with, for example, *PO-000200 — Too Little Tags reported (3 tags)*.
 
-A Too Little Tags or Too Many Tags report usually comes back this way: Station 1 records it (for example *Tag shortage recorded: 3 additional pallet(s). … The receipt remains open.*) and a supervisor resolves it on the desktop. Read the reason, then leave the dialog: tap **Back to Scan**, which appears when the count is already reached, or **Next Pallet** when pallets are still expected. Tell your supervisor. After the desktop work, offload the remaining pallets and close as **Complete**.
+Tell your supervisor. After the desktop work, open **Offload** again, offload any pallets that were added, and close as **Complete**.
+:::
+
+::: step When Station 1 refuses to close
+shot: 30_offload_close_refused.png
+caption: Station 1 refused the close. Its reason is at the top, with Back to Scan.
+alt: Close PO-000200 as… dialog with Station 1's reason above the count 2 of 2, the choices Too Little Tags and Complete, and Back to Scan
+Station 1 may refuse a close, or not answer. The dialog opens again with the reason at the top, and the same reason stays on the Offload screen.
+
+Read the reason. Choose again if you picked the wrong one, or leave the dialog: tap **Back to Scan**, which appears when the count is already reached, or **Next Pallet** when pallets are still expected. If the reason is not something you can fix, tell your supervisor.
 :::
 
 > [!WARNING] Closing is final
@@ -409,10 +429,9 @@ Table: Offload, pallet values
 |---|---|---|
 | Enter a bag weight greater than 0. | Weight empty, zero or not a number. | Enter the weight in kg. |
 | Enter a whole number of bags greater than 0. | Bag count empty, zero or not whole. | Enter the number of bags. |
-| Enter a batch reference. | The batch box is empty. | Enter the batch reference. |
 | Bag weight must be a positive number. / Bag weight must be at least 0.001 kg. | Station 1 refused the weight. | Correct it and confirm again. |
 | Bag count must be a positive whole number. / Bag count is too large for the confirmed bag weight. | Station 1 refused the bag count. | Correct it and confirm again. |
-| Batch reference is required. | Station 1 got no batch reference. | Enter it and confirm again. |
+| Batch reference is required. | Station 1 got no batch reference. | **Back to Scan**, set the pallet aside and tell your supervisor. |
 | Batch reference must match the printed label. Correct it in Prepare Delivery and reprint before offloading. | The batch differs from the label. | Set the pallet aside and tell your supervisor. |
 | The pallet does not belong to the referenced receiving document. | The pallet changed document since the match. | Scan the pallet again. |
 | The referenced receiving document is no longer open. | The document was closed meanwhile. | Ask a supervisor. |
@@ -424,10 +443,8 @@ Table: Closing the document
 |---|---|---|
 | Enter a whole number, 1 or more. | The tag count is empty, zero or not whole. | Enter the number of tags. |
 | *Document* closed — *Status* (*N* tags) | Station 1 closed the document. | Nothing. Start the next document. |
-| Tag shortage recorded: *N* additional pallet(s). … The receipt remains open. | Too Little Tags was recorded; the desktop must prepare the extra pallets. | **Back to Scan** and tell your supervisor. Offload the new pallets, then close as **Complete**. |
-| Shortage recorded for desktop Officer/Manager/Admin resolution. Mark the exact unused planned rows missing; the receipt remains open. | Too Many Tags was recorded; the desktop must remove the unused pallets. | **Back to Scan** (or **Next Pallet**) and tell your supervisor. |
-| All authorised extra pallet rows are confirmed. Choose Complete if no physical pallets remain; … The receipt remains open. | The extra pallets are all in. | Close as **Complete** if the truck is empty. |
-| Confirm every prepared pallet before reporting how many additional tags are required. | Prepared pallets are still to be offloaded. | Offload them first, then close. |
+| *PO-000200* — Too Little Tags reported (*N* tags) | Too Little Tags was recorded and the receipt stays open; the desktop must prepare the extra pallets. | Tell your supervisor. Offload the new pallets, then close as **Complete**. |
+| *PO-000200* — Too Many Tags reported (*N* tags) | Too Many Tags was recorded and the receipt stays open; the desktop must remove the unused pallets. | Tell your supervisor. |
 | The reported tag count does not match the recorded discrepancy or remaining prepared pallets. / The tag count differs from the resolved scanner report. | The number of tags is wrong. | Count again and resubmit. |
 | The *status* classification does not match the current pallet progress (*X* of *Y* included pallets). | The choice does not fit the progress. | Check what was received and choose again. |
 | The receiving document was already closed with a different classification. | Someone closed it already. | Ask a supervisor. |
@@ -452,10 +469,10 @@ The gear opens Settings from the Log In and home screens. The top half is open t
 ::: step Diagnostics: anyone
 shot: 40_settings_diag.png
 caption: Diagnostics, and the PIN gate below.
-alt: Settings Diagnostics: MQTT Broker Connected, Station 1 Online, Version v1.5.1 (9), Device ID scanner_59fcb3c4129d, and "Enter supervisor PIN to edit settings"
+alt: Settings Diagnostics: MQTT Broker Connected, Station 1 Online, Version v1.5.2 (10), Device ID scanner_59fcb3c4129d, and "Enter supervisor PIN to edit settings"
 - **MQTT Broker**: the network link on its own (Connected, Reconnecting, Offline).
 - **Station 1**: the station PC (Online, Offline, Unknown). Broker *Connected* with Station 1 *Offline* means the network is fine and the station is the problem.
-- **Version**: `v1.5.1 (9)` for this release.
+- **Version**: `v1.5.2 (10)` for this release.
 - **Device ID**: this handheld's identity, such as `scanner_59fcb3c4129d`. Read it out when you report a fault.
 - **Operator** at the bottom shows who is signed in, with **Log out**.
 :::
@@ -519,7 +536,7 @@ Table: Common problems
 | Every tag is refused with *No prepared pallet row is waiting…* | All prepared pallets already have tags. | Prepare more pallets on the desktop. |
 | **Match Pallet** stays grey. | One of the two boxes is empty. | Scan both the tag and the barcode. |
 | Scans do nothing. | The screen does not take scans (home, Pallet Values card), or the app is not in front. | Go to the screen that asks for a scan. |
-| A Too Little Tags or Too Many Tags close keeps coming back with a reason. | Station 1 recorded it and the desktop must resolve it. | **Back to Scan** (or **Next Pallet**) and tell your supervisor. |
+| A close keeps coming back with a reason. | Station 1 cannot close the document as chosen. | **Back to Scan** (or **Next Pallet**) and tell your supervisor. |
 | No scan sounds. | Media volume is down. | Turn up the media volume. The vibration still works. |
 | Signed out unexpectedly. | 15 minutes without a touch or scan, Station 1 went offline, or Station 1 ended the session. | Read the message on Log In and sign in again. |
 

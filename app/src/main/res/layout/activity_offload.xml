@@ -171,7 +171,8 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Step 2: station prefill, editable, confirmed as one unit -->
+            <!-- Step 2: station prefill, confirmed as one unit. Weight and bag count are
+                 editable; the batch reference is the station's and read-only (1.5.2). -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardValues"
                 android:layout_width="match_parent"
@@ -242,7 +243,7 @@
                             android:id="@+id/etBagCount"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:imeOptions="actionNext"
+                            android:imeOptions="actionDone"
                             android:inputType="number"
                             android:maxLines="1"
                             android:textColor="@color/text_primary_dark" />
@@ -262,8 +263,11 @@
                             android:id="@+id/etBatchRef"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:imeOptions="actionDone"
-                            android:inputType="textCapCharacters|textNoSuggestions"
+                            android:cursorVisible="false"
+                            android:focusable="false"
+                            android:focusableInTouchMode="false"
+                            android:inputType="none"
+                            android:longClickable="false"
                             android:maxLines="1"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>

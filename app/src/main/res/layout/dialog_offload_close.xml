@@ -40,11 +40,15 @@
         android:id="@+id/tvProgressLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
         android:gravity="center"
         android:textColor="@color/text_muted"
         android:textSize="16sp" />
 
-    <!-- One color per classification so the receipt outcome is unmistakable at a glance:
+    <!-- Only the choices valid at this pallet count are shown (1.5.2, OffloadClosePolicy):
+         Next Pallet + Too Many Tags while pallets are still expected, Too Little Tags +
+         Complete once the count is reached.
+         One color per classification so the receipt outcome is unmistakable at a glance:
          Short = amber (fewer than expected), Complete = green, Over = red (more than expected).
          Labels are window_background: white on these fills was 1.9-3.2:1, dark is 5.4-9.0:1
          (visual critique 2026-11-06, P1-2). -->
@@ -52,14 +56,14 @@
         android:id="@+id/btnCloseShort"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
         android:text="@string/btn_close_short_tags"
         android:textColor="@color/window_background"
         app:backgroundTint="@color/warning"
         app:cornerRadius="14dp" />
 
-    <!-- The middle slot: Next Pallet (primary blue, the everyday action) while pallets are
-         still expected, Complete once the count is reached. OffloadClosePolicy decides. -->
+    <!-- Next Pallet (primary blue, the everyday action) while pallets are still expected,
+         Complete once the count is reached. -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnNextPallet"
         android:layout_width="match_parent"
