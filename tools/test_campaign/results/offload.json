@@ -1,7 +1,7 @@
 {
  "campaign": "offload",
- "ranAt": "2026-09-18T04:34:19Z",
- "durationS": 873.5,
+ "ranAt": "2026-11-12T06:40:09Z",
+ "durationS": 828.9,
  "results": [
   {
    "id": "O1",
@@ -10,7 +10,7 @@
    "detail": "",
    "notes": [],
    "shots": [
-    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O1_edit_step.png"
+    "C:\\Dev\\Clients\\PPNAM\\Station_1\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O1_edit_step.png"
    ]
   },
   {
@@ -55,12 +55,12 @@
   },
   {
    "id": "O6",
-   "description": "Confirm with an edited weight; done prompt shows 6 of 12; Next Pallet resumes",
+   "description": "Confirm with an edited weight; the recorded dialog shows 6 of 12 with Next Pallet (no Complete, no Cancel); Next Pallet resumes",
    "verdict": "PASS",
    "detail": "",
    "notes": [],
    "shots": [
-    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O6_done_prompt.png"
+    "C:\\Dev\\Clients\\PPNAM\\Station_1\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O6_recorded_dialog.png"
    ]
   },
   {
@@ -91,37 +91,54 @@
   },
   {
    "id": "O10",
-   "description": "Done -> Complete closes the document and returns home; its pallets stop resolving",
+   "description": "1 of 2 offers Next Pallet; 2 of 2 offers Complete, which closes the document and returns home; its pallets stop resolving",
    "verdict": "PASS",
    "detail": "",
    "notes": [
-    "returned to home after Complete",
-    "post-close scan status: 'Document unknown.'"
+    "1 of 2: Next Pallet; 2 of 2: Complete; returned to home after Complete",
+    "post-close scan status: 'Tag already offloaded.'"
    ],
    "shots": [
-    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O10_close_prompt.png"
+    "C:\\Dev\\Clients\\PPNAM\\Station_1\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O10_one_of_two.png",
+    "C:\\Dev\\Clients\\PPNAM\\Station_1\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O10_two_of_two.png"
    ]
   },
   {
    "id": "O11",
-   "description": "Short and Over classifications are both accepted",
+   "description": "Too Little Tags and Too Many Tags are offered on every recorded pallet and both are accepted",
    "verdict": "PASS",
    "detail": "",
    "notes": [
-    "Short Tags: sent shortTagCount=3, returned home",
-    "Over Tags: sent overTagCount=2, returned home"
+    "Too Little Tags: sent shortTagCount=3, returned home",
+    "Too Many Tags: sent overTagCount=2, returned home"
    ],
    "shots": []
   },
   {
    "id": "O12",
-   "description": "Failed completion re-offers the close prompt; retry closes",
+   "description": "Failed Complete re-offers the dialog with the reason and Back to Scan; retry closes",
    "verdict": "PASS",
    "detail": "",
    "notes": [],
    "shots": [
-    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O12_reprompt.png"
+    "C:\\Dev\\Clients\\PPNAM\\Station_1\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O12_reprompt.png"
    ]
+  },
+  {
+   "id": "O16",
+   "description": "After a refused close at full count, Back to Scan returns to scanning with the document still open",
+   "verdict": "PASS",
+   "detail": "",
+   "notes": [],
+   "shots": []
+  },
+  {
+   "id": "O17",
+   "description": "A refused close with pallets still expected keeps Next Pallet and adds no extra exit",
+   "verdict": "PASS",
+   "detail": "",
+   "notes": [],
+   "shots": []
   },
   {
    "id": "O13",
@@ -138,20 +155,20 @@
    "detail": "",
    "notes": [],
    "shots": [
-    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O14_scan_only.png"
+    "C:\\Dev\\Clients\\PPNAM\\Station_1\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O14_scan_only.png"
    ]
   },
   {
    "id": "O15",
-   "description": "Short Tags asks how many; 0 is refused and Cancel returns to the classifications",
+   "description": "Too Little Tags asks how many; 0 is refused and Cancel returns to the classifications",
    "verdict": "PASS",
    "detail": "",
    "notes": [
-    "refused zero: 'Enter a whole number of tags, 1 or more'",
+    "refused zero: 'Enter a whole number, 1 or more.'",
     "retry sent shortTagCount=5"
    ],
    "shots": [
-    "C:\\Dev\\Clients\\PPNAM\\Andriod\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O15_tag_count_prompt.png"
+    "C:\\Dev\\Clients\\PPNAM\\Station_1\\PPNAM_Station_1_AA\\tools\\test_campaign\\shots\\O15_tag_count_prompt.png"
    ]
   }
  ]

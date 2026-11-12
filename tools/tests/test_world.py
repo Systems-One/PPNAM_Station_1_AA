@@ -5,8 +5,10 @@ Uses the deterministic seed world documented in simlib.world:
              badge "BADGE-001" (both tabs), badges otherwise rejected
   documents  PO-000123 purchase_order, 5 of 12 already offloaded
              ST-000077 stock_transfer, 0 of 3
+             PO-000200 purchase_order, 0 of 2 (reaches its expected count)
   pallets    TAG-PAL-001/BC-001, TAG-PAL-002/BC-002        -> PO-000123
              TAG-PAL-003/BC-003                            -> ST-000077
+             TAG-PAL-004/BC-004, TAG-PAL-005/BC-005        -> PO-000200
              TAG-PAL-OFF/BC-OFF   already offloaded
              TAG-PAL-NODOC/BC-NODOC  belongs to a closed document
   tags       TAG-OK-* / E280* assignable, TAG-USED-001 held by another scanner

@@ -4,10 +4,15 @@
     with SimControl() as sim:
         sim.cmd("reset")
         events = sim.cmd("events", since=0)["events"]
+
+The broker defaults to the shared one. To run a campaign against a private broker, set
+SIM_MQTT_HOST / SIM_MQTT_PORT / SIM_MQTT_USERNAME / SIM_MQTT_PASSWORD, and SIM_MQTT_TLS=0 /
+SIM_MQTT_WEBSOCKET=0 to turn those off.
 """
 from __future__ import annotations
 
 import json
+import os
 import queue
 import threading
 import time
@@ -20,8 +25,15 @@ CONTROL_OUT = "PPNAM/sim_control/station_1/out"
 
 
 class SimControl:
-    def __init__(self, host="mqtt.sysone.co.za", port=443, username="admin",
-                 password="admin", tls=True, websocket=True, timeout=10.0):
+    def __init__(self, host=None, port=None, username=None,
+                 password=None, tls=None, websocket=None, timeout=10.0):
+        env = os.environ
+        host = host or env.get("SIM_MQTT_HOST", "mqtt.sysone.co.za")
+        port = port or int(env.get("SIM_MQTT_PORT", "443"))
+        username = username or env.get("SIM_MQTT_USERNAME", "admin")
+        password = password or env.get("SIM_MQTT_PASSWORD", "admin")
+        tls = env.get("SIM_MQTT_TLS", "1") != "0" if tls is None else tls
+        websocket = env.get("SIM_MQTT_WEBSOCKET", "1") != "0" if websocket is None else websocket
         self.timeout = timeout
         self._replies: queue.Queue = queue.Queue()
         self._connected = threading.Event()

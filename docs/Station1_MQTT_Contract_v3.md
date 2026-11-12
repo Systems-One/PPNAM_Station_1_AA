@@ -632,7 +632,7 @@ Request on `PPNAM/station_1/{deviceId}/req/offload_complete`:
 #### Tag counts on a short or over close (added in 3.3.0)
 
 A short or over close also declares **how many tags the receipt differs by**. The operator
-picks Short Tags or Over Tags, is asked "How many tags short?" (or over), enters a whole
+picks Too Little Tags or Too Many Tags, is asked "How many tags too little?" (or too many), enters a whole
 number of 1 or more, and submits. The count rides on the same `offload_complete` in the
 field matching its status:
 
@@ -852,9 +852,11 @@ the simulator; **the Windows station handler is pending** — until it ships, sc
 5. *(3.1.0)* Read the document fields from each `offload_scan_result`, display the number
    and progress, and repeat `documentType`/`documentNumber` on that pallet's
    `offload_confirm` and on `offload_complete` — no scanner-side document selection or
-   locking. After each accepted `offload_confirm_result`, prompt "Are you done?" — Done
-   opens the Short / Complete / Over choice and sends `offload_complete` for that
-   document (Section 6.4); either way the scanner then returns to scanning.
+   locking. After each accepted `offload_confirm_result`, show the pallet progress with
+   the choices *(app 1.5.1: one dialog, no separate "Are you done?")*: Next Pallet while
+   pallets are still expected, Complete once `palletsScanned` reaches `palletsExpected`,
+   and Too Little Tags / Too Many Tags (`short` / `over`) always. A closing choice sends
+   `offload_complete` for that document (Section 6.4); Next Pallet returns to scanning.
 
 ## 11. Logging, redaction, and audit
 
