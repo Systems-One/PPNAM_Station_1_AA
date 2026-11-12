@@ -88,6 +88,8 @@ def _seed_documents() -> dict[str, Document]:
     return {
         "PO-000123": Document("PO-000123", "purchase_order", expected=12, scanned=5),
         "ST-000077": Document("ST-000077", "stock_transfer", expected=3, scanned=0),
+        # Small enough to reach its expected count: 1 of 2 offers Next Pallet, 2 of 2 Complete.
+        "PO-000200": Document("PO-000200", "purchase_order", expected=2, scanned=0),
         "PO-CLOSED": Document("PO-CLOSED", "purchase_order", expected=2, scanned=2, open=False),
     }
 
@@ -97,6 +99,8 @@ def _seed_pallets() -> list[Pallet]:
         Pallet("TAG-PAL-001", "BC-001", "PO-000123", 25.0, 40, "BATCH-A"),
         Pallet("TAG-PAL-002", "BC-002", "PO-000123", 25.0, 40, "BATCH-A"),
         Pallet("TAG-PAL-003", "BC-003", "ST-000077", 50.0, 20, "BATCH-B"),
+        Pallet("TAG-PAL-004", "BC-004", "PO-000200", 30.0, 10, "BATCH-C"),
+        Pallet("TAG-PAL-005", "BC-005", "PO-000200", 30.0, 10, "BATCH-C"),
         Pallet("TAG-PAL-OFF", "BC-OFF", "PO-000123", 25.0, 40, "BATCH-A", offloaded=True),
         Pallet("TAG-PAL-NODOC", "BC-NODOC", "PO-CLOSED", 10.0, 8, "BATCH-X"),
     ]
@@ -120,6 +124,7 @@ class World:
         # §4.6 replay: (deviceId, requestType, messageId) -> (body_sha256, suffix, payload)
         self._replay: dict[tuple[str, str, str], tuple[str, str, dict]] = {}
         self._fail_next: dict[str, str] = {}
+        self._fail_reason: dict[str, str] = {}
         self._swallow_next: set[str] = set()
 
     # ---------------------------------------------------------------- clock
@@ -135,8 +140,14 @@ class World:
         return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
 
     # ---------------------------------------------------------------- faults
-    def fail_next(self, kind: str, error_code: str) -> None:
+    def fail_next(self, kind: str, error_code: str, reason: str | None = None) -> None:
+        """Fails the next `kind` request. `reason` replaces the canned text for that one reply,
+        e.g. the desktop's own wording for a recorded-but-still-open shortage."""
         self._fail_next[kind] = error_code
+        if reason:
+            self._fail_reason[kind] = reason
+        else:
+            self._fail_reason.pop(kind, None)
 
     def swallow_next(self, kind: str) -> None:
         self._swallow_next.add(kind)
@@ -354,7 +365,11 @@ class World:
             return handler(device_id, payload, forced_error=gate_error)
 
         forced = self._fail_next.pop(suffix, None)
-        return handler(device_id, payload, forced_error=forced)
+        reason = self._fail_reason.pop(suffix, None)
+        result = handler(device_id, payload, forced_error=forced)
+        if forced and reason and result is not None:
+            result[1]["reason"] = reason
+        return result
 
     def _session_gate(self, device_id: str, payload: dict, needed_tab: str) -> str | None:
         session_id = payload.get("operatorSessionId")

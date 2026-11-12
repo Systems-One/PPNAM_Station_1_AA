@@ -1,13 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Scrolls as one piece: a long station reason plus the count and four choices is taller
+     than the C72's screen, and no choice may end up unreachable. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingStart="24dp"
-    android:paddingEnd="24dp">
-    <!-- No bottom padding: the dialog's button bar already pads its top, and the two together
-         left ~65dp of dead space above Cancel (skill-run critique 2026-11-06, P3). -->
+    android:paddingEnd="24dp"
+    android:paddingBottom="20dp">
+
+    <!-- The station's reason for refusing the previous close attempt (audit station1-08). -->
+    <TextView
+        android:id="@+id/tvCloseReason"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <!-- The pallet count is the thing the operator reads first after every pallet (1.5.1):
+         large and bold, with the document under it. Hidden when the station sent no counts. -->
+    <TextView
+        android:id="@+id/tvProgressCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:textColor="@color/text_primary"
+        android:textSize="52sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvProgressLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textColor="@color/text_muted"
+        android:textSize="16sp" />
 
     <!-- One color per classification so the receipt outcome is unmistakable at a glance:
          Short = amber (fewer than expected), Complete = green, Over = red (more than expected).
@@ -17,10 +52,21 @@
         android:id="@+id/btnCloseShort"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="20dp"
         android:text="@string/btn_close_short_tags"
         android:textColor="@color/window_background"
         app:backgroundTint="@color/warning"
+        app:cornerRadius="14dp" />
+
+    <!-- The middle slot: Next Pallet (primary blue, the everyday action) while pallets are
+         still expected, Complete once the count is reached. OffloadClosePolicy decides. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnNextPallet"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="12dp"
+        android:text="@string/btn_next_pallet"
+        app:backgroundTint="@color/primary_button_bg"
         app:cornerRadius="14dp" />
 
     <com.google.android.material.button.MaterialButton
@@ -42,4 +88,16 @@
         android:textColor="@color/window_background"
         app:backgroundTint="@color/danger"
         app:cornerRadius="14dp" />
+
+    <!-- Only after a refused close with no Next Pallet on offer: the way back to scanning. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCloseBackToScan"
+        style="@style/Widget.SysOneScanner.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="4dp"
+        android:text="@string/btn_back_to_scan"
+        android:textColor="@color/text_primary"
+        android:visibility="gone" />
 </LinearLayout>
+</ScrollView>

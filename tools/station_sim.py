@@ -11,7 +11,7 @@ Usage:
                                 [--no-tls] [--no-websocket]
 
 Control channel (for test scripts), JSON on PPNAM/sim_control/station_1/cmd:
-    {"cmd": "fail-next", "kind": "tag_scan", "code": "INTERNAL_ERROR"}
+    {"cmd": "fail-next", "kind": "tag_scan", "code": "INTERNAL_ERROR"}   # optional "reason"
     {"cmd": "swallow-next", "kind": "offload_confirm"}   # forced timeout
     {"cmd": "station", "state": "offline"}               # or "online"
     {"cmd": "expire-sessions"}
@@ -209,7 +209,7 @@ class StationSim:
         print(f"[sim] control: {command}")
         with self.lock:
             if cmd == "fail-next":
-                self.world.fail_next(command["kind"], command["code"])
+                self.world.fail_next(command["kind"], command["code"], command.get("reason"))
                 reply = {"ok": True, "cmd": cmd}
             elif cmd == "swallow-next":
                 self.world.swallow_next(command["kind"])

@@ -27,10 +27,12 @@ import org.json.JSONObject
  *     final typed values and the document reference repeated verbatim. The station
  *     re-validates the pair at confirm time, so no client-side pairing state must survive
  *     between the two steps.
- *  3. After each accepted confirm: "Are you done?" — Done closes the looked-up document as
- *     Short Tags / Complete / Over Tags via `offload_complete` and returns to the home
- *     screen; Next Pallet just keeps scanning. A short or over close asks how many tags the
- *     receipt differs by and sends it as `shortTagCount`/`overTagCount` (§6.4).
+ *  3. After each accepted confirm: one dialog with the pallet count and the choices (1.5.1,
+ *     [OffloadClosePolicy]). While pallets are still expected it offers Next Pallet, which
+ *     keeps scanning; once the count is reached it offers Complete instead. Too Little Tags and
+ *     Too Many Tags are always there. A close goes out as `offload_complete` and returns to the
+ *     home screen; a short or over close first asks how many tags the receipt differs by and
+ *     sends it as `shortTagCount`/`overTagCount` (§6.4).
  *
  * Value-validation rejections (INVALID_BAG_WEIGHT / INVALID_BAG_COUNT /
  * BATCH_REFERENCE_REQUIRED) keep the operator on the edit step; any other rejection returns
@@ -323,7 +325,7 @@ class OffloadActivity : SessionActivity() {
                             val expected = json.optInt("palletsExpected", -1)
                             enterScanStep(clearScan = true)
                             showScanStatus(getString(R.string.msg_offload_recorded), R.color.success)
-                            showDonePrompt(document, scanned, expected)
+                            showClosePrompt(document, scanned, expected)
                         }
                         json.optString("errorCode", "") in editStepErrors -> {
                             step = Step.EDIT
@@ -344,72 +346,82 @@ class OffloadActivity : SessionActivity() {
         }
     }
 
-    // ---- step 3: "Are you done?" and offload_complete ----------------------------------------
+    // ---- step 3: the pallet-recorded dialog and offload_complete -----------------------------
 
     /**
-     * §6.4: after every accepted confirm the operator may close the looked-up document.
-     * Custom view: the two choices carry distinct colors (continue = blue, done = green)
-     * instead of the theme's identical dialog buttons. Not cancelable: a scrim tap or Back used
-     * to act as a silent "Next Pallet" (audit station1-17).
+     * §6.4: after every accepted confirm the operator sees the pallet count and chooses what
+     * happens next. Short = amber, Complete = green, Over = red, Next Pallet = primary blue;
+     * [OffloadClosePolicy] decides which of Next Pallet / Complete the middle slot holds.
+     *
+     * Not cancelable and no Cancel button: a scrim tap or Back used to act as a silent "Next
+     * Pallet" (audit station1-17). [reason] is the station's rejection of the previous close
+     * attempt; it is shown inside this dialog so the operator sees why they are being asked
+     * again (audit station1-08).
      */
-    private fun showDonePrompt(document: OffloadDocument, scanned: Int, expected: Int) {
+    private fun showClosePrompt(
+        document: OffloadDocument,
+        scanned: Int,
+        expected: Int,
+        reason: String? = null,
+    ) {
         hideKeyboard()
-        val message =
-            if (scanned >= 0 && expected >= 0) {
-                getString(R.string.dialog_done_message, scanned, expected, document.documentNumber)
-            } else {
-                getString(R.string.dialog_done_message_no_progress, document.documentNumber)
-            }
-        val view = com.mitas.ppnam.station1aa.databinding.DialogOffloadDoneBinding
+        val choices = OffloadClosePolicy.choices(scanned, expected, closeRefused = !reason.isNullOrBlank())
+        val view = com.mitas.ppnam.station1aa.databinding.DialogOffloadCloseBinding
             .inflate(layoutInflater)
-        view.tvDoneMessage.text = message
+        if (OffloadClosePolicy.hasProgress(scanned, expected)) {
+            view.tvProgressCount.text = getString(R.string.dialog_progress_count, scanned, expected)
+            view.tvProgressLabel.text = getString(R.string.dialog_progress_label, document.documentNumber)
+        } else {
+            view.tvProgressCount.visibility = View.GONE
+            view.tvProgressLabel.text =
+                getString(R.string.dialog_progress_label_no_count, document.documentNumber)
+        }
+        view.btnNextPallet.visibility = if (choices.nextPallet) View.VISIBLE else View.GONE
+        view.btnCloseComplete.visibility = if (choices.complete) View.VISIBLE else View.GONE
+        view.btnCloseBackToScan.visibility = if (choices.backToScan) View.VISIBLE else View.GONE
+
+        // With Next Pallet on offer the dialog is first of all a progress report; once only
+        // closing choices remain it asks the closing question.
+        val title = if (choices.nextPallet) {
+            getString(R.string.dialog_done_title)
+        } else {
+            getString(R.string.dialog_close_title, document.documentNumber)
+        }
+        if (!reason.isNullOrBlank()) {
+            view.tvCloseReason.text = reason
+            view.tvCloseReason.visibility = View.VISIBLE
+            // The desktop's reasons run to eight lines. With one above the count the dialog
+            // must still show every choice without scrolling on the C72, so the count gives
+            // up its size here, and its label too when the title already names the document.
+            view.tvProgressCount.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 28f)
+            if (!choices.nextPallet) view.tvProgressLabel.visibility = View.GONE
+            (view.btnCloseShort.layoutParams as android.view.ViewGroup.MarginLayoutParams).topMargin =
+                (12 * resources.displayMetrics.density).toInt()
+        }
         val dialog = neutralDialog()
-            .setTitle(getString(R.string.dialog_done_title))
+            .setTitle(title)
             .setView(view.root)
             .setCancelable(false)
             .show()
-        // Every expected pallet is recorded (e.g. 2 of 2): there is no next pallet, so only
-        // Done remains. Unknown progress (-1) leaves the button enabled.
-        view.btnNextPallet.isEnabled = !(expected > 0 && scanned >= expected)
-        view.btnNextPallet.setOnClickListener { dialog.dismiss() }
-        view.btnDoneClose.setOnClickListener {
-            dialog.dismiss()
-            showClosePrompt(document)
-        }
-        view.btnNextPallet.applyPressScaleFeedback()
-        view.btnDoneClose.applyPressScaleFeedback()
-    }
 
-    /**
-     * Short = amber, Complete = green, Over = red — the classification is color-coded.
-     * [reason] is the station's rejection of the previous close attempt; it is shown inside
-     * this dialog so the operator sees why they are being asked again (audit station1-08).
-     */
-    private fun showClosePrompt(document: OffloadDocument, reason: String? = null) {
-        hideKeyboard()
-        val view = com.mitas.ppnam.station1aa.databinding.DialogOffloadCloseBinding
-            .inflate(layoutInflater)
-        val builder = neutralDialog()
-            .setTitle(getString(R.string.dialog_close_title, document.documentNumber))
-            .setView(view.root)
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-        if (!reason.isNullOrBlank()) builder.setMessage(reason)
-        val dialog = builder.show()
-        val choices = listOf(
+        view.btnNextPallet.setOnClickListener { dialog.dismiss() }
+        view.btnNextPallet.applyPressScaleFeedback()
+        view.btnCloseBackToScan.setOnClickListener { dialog.dismiss() }
+        val closes = listOf(
             view.btnCloseShort to OffloadStatus.SHORT,
             view.btnCloseComplete to OffloadStatus.COMPLETE,
             view.btnCloseOver to OffloadStatus.OVER,
         )
-        for ((button, wireValue) in choices) {
+        for ((button, wireValue) in closes) {
             button.setOnClickListener {
                 dialog.dismiss()
                 val label = button.text.toString()
                 // Short and Over declare how many tags the receipt differs by; Complete
                 // declares no discrepancy and goes straight out.
                 if (wireValue == OffloadStatus.COMPLETE) {
-                    sendCompletion(document, wireValue, label, tagCount = null)
+                    sendCompletion(document, scanned, expected, wireValue, label, tagCount = null)
                 } else {
-                    showTagCountPrompt(document, wireValue, label)
+                    showTagCountPrompt(document, scanned, expected, wireValue, label)
                 }
             }
             button.applyPressScaleFeedback()
@@ -421,7 +433,13 @@ class OffloadActivity : SessionActivity() {
      * than abandoning the closure, so a mis-tap on Short is one step from being corrected.
      * The dialog stays open on an invalid count — dismissing it would lose the choice.
      */
-    private fun showTagCountPrompt(document: OffloadDocument, status: String, statusLabel: String) {
+    private fun showTagCountPrompt(
+        document: OffloadDocument,
+        scanned: Int,
+        expected: Int,
+        status: String,
+        statusLabel: String,
+    ) {
         val view = com.mitas.ppnam.station1aa.databinding.DialogTagCountBinding
             .inflate(layoutInflater)
         val title = if (status == OffloadStatus.SHORT) {
@@ -433,7 +451,7 @@ class OffloadActivity : SessionActivity() {
             .setTitle(title)
             .setView(view.root)
             .setPositiveButton(getString(R.string.btn_submit), null)
-            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> showClosePrompt(document) }
+            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> showClosePrompt(document, scanned, expected) }
             .create()
         // The field is the dialog's whole purpose: open the keyboard with it (audit station1-18).
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
@@ -452,7 +470,7 @@ class OffloadActivity : SessionActivity() {
             getSystemService(android.view.inputmethod.InputMethodManager::class.java)
                 ?.hideSoftInputFromWindow(view.etTagCount.windowToken, 0)
             dialog.dismiss()
-            sendCompletion(document, status, statusLabel, count)
+            sendCompletion(document, scanned, expected, status, statusLabel, count)
         }
 
         // Set after show() so an invalid entry does not dismiss the dialog.
@@ -463,6 +481,8 @@ class OffloadActivity : SessionActivity() {
 
     private fun sendCompletion(
         document: OffloadDocument,
+        scanned: Int,
+        expected: Int,
         status: String,
         statusLabel: String,
         tagCount: Int?,
@@ -508,15 +528,15 @@ class OffloadActivity : SessionActivity() {
                         if (handleSessionRejection(json)) return@request
                         val reason = stationReason(json)
                         showScanStatus(reason, R.color.danger)
-                        // Let the operator retry the closure (or cancel back to scanning) —
+                        // Let the operator retry the closure (or go back to scanning) —
                         // with the reason in the dialog itself, not hidden behind it.
-                        showClosePrompt(document, reason)
+                        showClosePrompt(document, scanned, expected, reason)
                     }
                 }
                 .onFailure { e ->
                     val reason = failureText(e)
                     showScanStatus(reason, R.color.danger)
-                    showClosePrompt(document, reason)
+                    showClosePrompt(document, scanned, expected, reason)
                 }
         }
     }
