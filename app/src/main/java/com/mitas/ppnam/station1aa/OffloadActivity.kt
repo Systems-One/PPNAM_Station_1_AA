@@ -23,16 +23,19 @@ import org.json.JSONObject
  *     the open document the pallet belongs to (documentType/documentNumber and pallet
  *     progress) — the scanner is never locked to a document; the reference is per-pallet
  *     metadata from this lookup.
- *  2. Review/edit the prefilled values, then Confirm Offload -> `offload_confirm` with the
- *     final typed values and the document reference repeated verbatim. The station
- *     re-validates the pair at confirm time, so no client-side pairing state must survive
- *     between the two steps.
- *  3. After each accepted confirm: one dialog with the pallet count and the choices (1.5.1,
- *     [OffloadClosePolicy]). While pallets are still expected it offers Next Pallet, which
- *     keeps scanning; once the count is reached it offers Complete instead. Too Little Tags and
- *     Too Many Tags are always there. A close goes out as `offload_complete` and returns to the
- *     home screen; a short or over close first asks how many tags the receipt differs by and
- *     sends it as `shortTagCount`/`overTagCount` (§6.4).
+ *  2. Review/edit the prefilled weight and bag count, then Confirm Offload -> `offload_confirm`
+ *     with the final values and the document reference repeated verbatim. The batch reference
+ *     is the station's and is shown read-only (1.5.2): it goes back exactly as prefilled. The
+ *     station re-validates the pair at confirm time, so no client-side pairing state must
+ *     survive between the two steps.
+ *  3. After each accepted confirm: one dialog with the pallet count and only the choices that
+ *     are valid at that count (1.5.2, [OffloadClosePolicy]). While pallets are still expected
+ *     it offers Next Pallet, which keeps scanning, and Too Many Tags; once the count is
+ *     reached it offers Complete and Too Little Tags instead. A close goes out as
+ *     `offload_complete` and returns to the home screen; a short or over close first asks how
+ *     many tags the receipt differs by and sends it as `shortTagCount`/`overTagCount` (§6.4).
+ *     Station 1 keeps the receipt open on such a report and answers "recorded" rather than
+ *     "closed"; that is the report succeeding, so it returns to the home screen as well.
  *
  * Value-validation rejections (INVALID_BAG_WEIGHT / INVALID_BAG_COUNT /
  * BATCH_REFERENCE_REQUIRED) keep the operator on the edit step; any other rejection returns
@@ -147,7 +150,6 @@ class OffloadActivity : SessionActivity() {
         val clearConfirmMessage = SimpleTextWatcher { if (step == Step.EDIT) hideConfirmStatus() }
         binding.etBagWeight.addTextChangedListener(clearConfirmMessage)
         binding.etBagCount.addTextChangedListener(clearConfirmMessage)
-        binding.etBatchRef.addTextChangedListener(clearConfirmMessage)
 
         binding.btnMatchPallet.setOnClickListener { matchPallet() }
         binding.btnMatchPallet.applyPressScaleFeedback()
@@ -155,8 +157,9 @@ class OffloadActivity : SessionActivity() {
         binding.btnConfirmOffload.setOnClickListener { confirmOffload() }
         binding.btnConfirmOffload.applyPressScaleFeedback()
         binding.btnRetryConfirm.setOnClickListener { confirmOffload() }
-        // Done on the last edit field confirms (audit group b).
-        binding.etBatchRef.setOnSubmit { confirmOffload() }
+        // Done on the last editable field confirms (audit group b). The batch reference
+        // below it is read-only.
+        binding.etBagCount.setOnSubmit { confirmOffload() }
         binding.btnBackToScan.setOnClickListener { enterScanStep(clearScan = false) }
 
         onBackPressedDispatcher.addCallback(this) { finishBackward() }
@@ -351,7 +354,8 @@ class OffloadActivity : SessionActivity() {
     /**
      * §6.4: after every accepted confirm the operator sees the pallet count and chooses what
      * happens next. Short = amber, Complete = green, Over = red, Next Pallet = primary blue;
-     * [OffloadClosePolicy] decides which of Next Pallet / Complete the middle slot holds.
+     * [OffloadClosePolicy] decides which of them are valid at this pallet count, and only
+     * those are shown.
      *
      * Not cancelable and no Cancel button: a scrim tap or Back used to act as a silent "Next
      * Pallet" (audit station1-17). [reason] is the station's rejection of the previous close
@@ -378,6 +382,8 @@ class OffloadActivity : SessionActivity() {
         }
         view.btnNextPallet.visibility = if (choices.nextPallet) View.VISIBLE else View.GONE
         view.btnCloseComplete.visibility = if (choices.complete) View.VISIBLE else View.GONE
+        view.btnCloseShort.visibility = if (choices.tooLittleTags) View.VISIBLE else View.GONE
+        view.btnCloseOver.visibility = if (choices.tooManyTags) View.VISIBLE else View.GONE
         view.btnCloseBackToScan.visibility = if (choices.backToScan) View.VISIBLE else View.GONE
 
         // With Next Pallet on offer the dialog is first of all a progress report; once only
@@ -395,8 +401,7 @@ class OffloadActivity : SessionActivity() {
             // up its size here, and its label too when the title already names the document.
             view.tvProgressCount.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 28f)
             if (!choices.nextPallet) view.tvProgressLabel.visibility = View.GONE
-            (view.btnCloseShort.layoutParams as android.view.ViewGroup.MarginLayoutParams).topMargin =
-                (12 * resources.displayMetrics.density).toInt()
+            (view.tvProgressLabel.layoutParams as android.view.ViewGroup.MarginLayoutParams).bottomMargin = 0
         }
         val dialog = neutralDialog()
             .setTitle(title)
@@ -523,6 +528,21 @@ class OffloadActivity : SessionActivity() {
                         }
                         android.widget.Toast.makeText(this, closedMessage, android.widget.Toast.LENGTH_LONG)
                             .show()
+                        finishBackward()
+                    } else if (tagCount != null &&
+                        OffloadClosePolicy.isRecordedReport(status, json.optString("errorCode", ""))
+                    ) {
+                        // Station 1 took the Too Little / Too Many Tags report and keeps the
+                        // receipt open for the desktop to resolve. For the operator that is the
+                        // report succeeding: back to the home screen, same as a close (1.5.2).
+                        android.widget.Toast.makeText(
+                            this,
+                            getString(
+                                R.string.msg_tag_report_recorded,
+                                document.documentNumber, statusLabel, tagCount,
+                            ),
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
                         finishBackward()
                     } else {
                         if (handleSessionRejection(json)) return@request

@@ -5,7 +5,7 @@ physical Chainway C72 (`HC720DE260100322`), driven over adb with scans injected
 as scanner broadcasts. Simulator itself verified by 83 pytest cases and a
 17-check live protocol run (`tools/test_campaign/fake_scanner.py`).
 
-**Overall: 48/48 passed** — generated 2026-11-12 06:40 UTC
+**Overall: 50/50 passed** — generated 2026-11-12 09:17 UTC
 
 ## Login & Session (contract §4) — 12/12
 
@@ -36,7 +36,7 @@ as scanner broadcasts. Simulator itself verified by 83 pytest cases and a
 | T6 | Forced INTERNAL_ERROR is surfaced as a station error | PASS | status: 'Unexpected station error.' |
 | T7 | Expired session sends the operator back to login | PASS |  |
 
-## Offload (contract §6) — 17/17
+## Offload (contract §6) — 19/19
 
 | ID | Case | Verdict | Notes |
 |---|---|---|---|
@@ -45,18 +45,20 @@ as scanner broadcasts. Simulator itself verified by 83 pytest cases and a
 | O3 | Scan rejection TAG-PAL-001+BC-NOPE returns to scanning | PASS | status: 'Barcode not found.' |
 | O4 | Scan rejection TAG-PAL-OFF+BC-OFF returns to scanning | PASS | status: 'Tag already offloaded.' |
 | O5 | Scan rejection TAG-PAL-NODOC+BC-NODOC returns to scanning | PASS | status: 'Document unknown.' |
-| O6 | Confirm with an edited weight; the recorded dialog shows 6 of 12 with Next Pallet (no Complete, no Cancel); Next Pallet resumes | PASS |  |
+| O6 | Confirm with an edited weight; the recorded dialog shows 6 of 12 with Next Pallet and Too Many Tags only (no Cancel); Next Pallet resumes | PASS |  |
 | O7 | Client-side validation blocks a zero weight locally | PASS |  |
 | O8 | Server-side INVALID_BAG_WEIGHT keeps the operator on the edit step | PASS | status: 'Invalid bag weight.' |
 | O9 | Confirm timeout stays on edit; retry succeeds | PASS |  |
-| O10 | 1 of 2 offers Next Pallet; 2 of 2 offers Complete, which closes the document and returns home; its pallets stop resolving | PASS | 1 of 2: Next Pallet; 2 of 2: Complete; returned to home after Complete; post-close scan status: 'Tag already offloaded.' |
-| O11 | Too Little Tags and Too Many Tags are offered on every recorded pallet and both are accepted | PASS | Too Little Tags: sent shortTagCount=3, returned home; Too Many Tags: sent overTagCount=2, returned home |
+| O10 | 1 of 2 offers Next Pallet / Too Many Tags; 2 of 2 offers Complete / Too Little Tags; Complete closes the document and returns home; its pallets stop resolving | PASS | 1 of 2: Next Pallet; 2 of 2: Complete; returned to home after Complete; post-close scan status: 'Tag already offloaded.' |
+| O11 | Too Many Tags (pallets still expected) and Too Little Tags (count reached) both send their count and return home | PASS | Too Little Tags: sent shortTagCount=3, returned home; Too Many Tags: sent overTagCount=2, returned home |
 | O12 | Failed Complete re-offers the dialog with the reason and Back to Scan; retry closes | PASS |  |
 | O16 | After a refused close at full count, Back to Scan returns to scanning with the document still open | PASS |  |
 | O17 | A refused close with pallets still expected keeps Next Pallet and adds no extra exit | PASS |  |
+| O18 | A Too Little / Too Many Tags report Station 1 records while keeping the receipt open (INCOMPLETE_PALLETS) returns home like a close | PASS | Too Little Tags: recorded, receipt open, returned home; Too Many Tags: recorded, receipt open, returned home |
+| O19 | The batch reference is read-only: typing does not change it and the prefilled value is what gets confirmed | PASS |  |
 | O13 | Back to scan from the edit step keeps the scanned pair | PASS |  |
 | O14 | RFID and barcode fields ignore typing; only scans fill them | PASS |  |
-| O15 | Too Little Tags asks how many; 0 is refused and Cancel returns to the classifications | PASS | refused zero: 'Enter a whole number, 1 or more.'; retry sent shortTagCount=5 |
+| O15 | Too Many Tags asks how many; 0 is refused and Cancel returns to the classifications | PASS | refused zero: 'Enter a whole number, 1 or more.'; retry sent overTagCount=2 |
 
 ## Settings, Provisioning & Diagnostics — 9/9
 

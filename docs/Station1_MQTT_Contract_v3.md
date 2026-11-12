@@ -703,6 +703,14 @@ Rules:
   `offload` workflow permission).
 - The station MUST be idempotent on a re-sent identical completion for an
   already-closed document: reply `accepted: true` again without a second mutation.
+- Scanner behaviour since app 1.5.2: the dialog offers only the classifications the station
+  can act on at the current pallet count — `over` (Too Many Tags) while pallets are still
+  expected, `complete` and `short` (Too Little Tags) once `palletsScanned` reaches
+  `palletsExpected`. A `short`/`over` answered with `accepted: false` and
+  `INCOMPLETE_PALLETS` or `OVER_RECEIPT_PENDING_AUTHORISATION` is a report the station has on
+  record with the receipt left open; the scanner treats it as the report succeeding and
+  returns to the home screen, exactly as after an accepted close. Any other refusal re-offers
+  the dialog with the station's `reason`.
 - The completion closes only the referenced document and does not end the operator's
   session — the scanner returns to scanning afterwards. What the classification does to
   station-side business state (reconciliation, SAP posting, discrepancy handling) is

@@ -73,13 +73,15 @@ def wait_count(want: str):
     expect(shown == want, f"dialog count {shown!r}, wanted {want!r}")
 
 
-def expect_choices(next_pallet: bool, complete: bool, back_to_scan: bool):
-    """The dialog's choices: Short/Over always, the rest per OffloadClosePolicy, never Cancel."""
+def expect_choices(reached: bool, back_to_scan: bool):
+    """Only the valid choices per OffloadClosePolicy, never Cancel: Next Pallet + Too Many Tags
+    while pallets are still expected, Complete + Too Little Tags once the count is reached."""
     ids = {n.resource_id.rsplit("/", 1)[-1] for n in d.ui()}
     texts = {n.text for n in d.ui()}
-    expect("btnCloseShort" in ids and "btnCloseOver" in ids, "Too Little Tags / Too Many Tags missing")
-    expect(("btnNextPallet" in ids) == next_pallet, f"Next Pallet shown={'btnNextPallet' in ids}")
-    expect(("btnCloseComplete" in ids) == complete, f"Complete shown={'btnCloseComplete' in ids}")
+    expect(("btnNextPallet" in ids) == (not reached), f"Next Pallet shown={'btnNextPallet' in ids}")
+    expect(("btnCloseOver" in ids) == (not reached), f"Too Many Tags shown={'btnCloseOver' in ids}")
+    expect(("btnCloseComplete" in ids) == reached, f"Complete shown={'btnCloseComplete' in ids}")
+    expect(("btnCloseShort" in ids) == reached, f"Too Little Tags shown={'btnCloseShort' in ids}")
     expect(("btnCloseBackToScan" in ids) == back_to_scan,
            f"Back to Scan shown={'btnCloseBackToScan' in ids}")
     expect("Cancel" not in texts and "Done" not in texts, "Cancel/Done still on the dialog")
@@ -141,8 +143,8 @@ def main():
                 case.note(f"status: {shown!r}")
 
         # ------------------------------------------------------------ O6
-        with c.case("O6", "Confirm with an edited weight; the recorded dialog shows 6 of 12 "
-                          "with Next Pallet (no Complete, no Cancel); Next Pallet resumes") as case:
+        with c.case("O6", "Confirm with an edited weight; the recorded dialog shows 6 of 12 with "
+                          "Next Pallet and Too Many Tags only (no Cancel); Next Pallet resumes") as case:
             fresh_offload(sim)
             base = len(sim.events())
             scan_pair("TAG-PAL-001", "BC-001")
@@ -152,7 +154,7 @@ def main():
             tap_btn("btnConfirmOffload")
             wait_count("6 of 12")
             expect(d.find(text="Pallet recorded", retries=2) is not None, "dialog title missing")
-            expect_choices(next_pallet=True, complete=False, back_to_scan=False)
+            expect_choices(reached=False, back_to_scan=False)
             case.shot(d.screenshot("O6_recorded_dialog"))
             d.tap(id="btnNextPallet")
             confirm_seen = sim.wait_for(
@@ -211,20 +213,21 @@ def main():
             d.tap(id="btnNextPallet")
 
         # ------------------------------------------------------------ O10
-        with c.case("O10", "1 of 2 offers Next Pallet; 2 of 2 offers Complete, which closes the "
-                           "document and returns home; its pallets stop resolving") as case:
+        with c.case("O10", "1 of 2 offers Next Pallet / Too Many Tags; 2 of 2 offers Complete / "
+                           "Too Little Tags; Complete closes the document and returns home; its "
+                           "pallets stop resolving") as case:
             fresh_offload(sim)
             base = len(sim.events())
             offload("TAG-PAL-004", "BC-004")
             wait_count("1 of 2")
-            expect_choices(next_pallet=True, complete=False, back_to_scan=False)
+            expect_choices(reached=False, back_to_scan=False)
             case.shot(d.screenshot("O10_one_of_two"))
             d.tap(id="btnNextPallet")
             offload("TAG-PAL-005", "BC-005")
             wait_count("2 of 2")
             expect(d.find(text="Close PO-000200 as", partial=True, retries=2) is not None,
                    "close title missing at full count")
-            expect_choices(next_pallet=False, complete=True, back_to_scan=False)
+            expect_choices(reached=True, back_to_scan=False)
             case.shot(d.screenshot("O10_two_of_two"))
             close_as("Complete")
             expect(d.find(id="tileOffload", retries=10) is not None,
@@ -244,12 +247,20 @@ def main():
             case.note(f"post-close scan status: {shown!r}")
 
         # ------------------------------------------------------------ O11
-        with c.case("O11", "Too Little Tags and Too Many Tags are offered on every recorded pallet and both are accepted") as case:
+        with c.case("O11", "Too Many Tags (pallets still expected) and Too Little Tags (count "
+                           "reached) both send their count and return home") as case:
             for status_label, wire, tags in (("Too Little Tags", "short", 3), ("Too Many Tags", "over", 2)):
                 fresh_offload(sim)
                 base = len(sim.events())
-                offload("TAG-PAL-003", "BC-003")
-                wait_count("1 of 3")
+                if wire == "short":
+                    offload("TAG-PAL-004", "BC-004")
+                    wait_count("1 of 2")
+                    d.tap(id="btnNextPallet")
+                    offload("TAG-PAL-005", "BC-005")
+                    wait_count("2 of 2")
+                else:
+                    offload("TAG-PAL-003", "BC-003")
+                    wait_count("1 of 3")
                 close_as(status_label, tags)
                 expect(d.find(id="tileOffload", retries=10) is not None,
                        f"{status_label}: did not return home")
@@ -275,7 +286,7 @@ def main():
             close_as("Complete")
             expect(d.find(id="btnCloseBackToScan", retries=10) is not None,
                    "refused close at full count did not offer Back to Scan")
-            expect_choices(next_pallet=False, complete=True, back_to_scan=True)
+            expect_choices(reached=True, back_to_scan=True)
             expect(d.find(text="Unexpected station error.", retries=2) is not None,
                    "the station's reason is not in the dialog")
             case.shot(d.screenshot("O12_reprompt"))
@@ -312,9 +323,71 @@ def main():
             close_as("Too Many Tags", 2)
             expect(d.find(text="Unexpected station error.", retries=10) is not None,
                    "the station's reason is not in the dialog")
-            expect_choices(next_pallet=True, complete=False, back_to_scan=False)
+            expect_choices(reached=False, back_to_scan=False)
             d.tap(id="btnNextPallet")
             expect(d.find(id="tvProgressCount", retries=1) is None, "dialog still open")
+
+        # ------------------------------------------------------------ O18
+        with c.case("O18", "A Too Little / Too Many Tags report Station 1 records while keeping the "
+                           "receipt open (INCOMPLETE_PALLETS) returns home like a close") as case:
+            for status_label, wire, tags, reason in (
+                ("Too Little Tags", "short", 3,
+                 "Tag shortage recorded: 3 additional pallet(s). The receipt remains open."),
+                ("Too Many Tags", "over", 2,
+                 "Shortage recorded for desktop Officer/Manager/Admin resolution. "
+                 "Mark the exact unused planned rows missing; the receipt remains open."),
+            ):
+                fresh_offload(sim)
+                base = len(sim.events())
+                if wire == "short":
+                    offload("TAG-PAL-004", "BC-004")
+                    wait_count("1 of 2")
+                    d.tap(id="btnNextPallet")
+                    offload("TAG-PAL-005", "BC-005")
+                    wait_count("2 of 2")
+                    doc_number = "PO-000200"
+                else:
+                    offload("TAG-PAL-003", "BC-003")
+                    wait_count("1 of 3")
+                    doc_number = None
+                sim.cmd("fail-next", kind="offload_complete", code="INCOMPLETE_PALLETS", reason=reason)
+                close_as(status_label, tags)
+                expect(d.find(id="tileOffload", retries=10) is not None,
+                       f"{status_label}: a recorded report did not return home")
+                done = sim.wait_for(
+                    lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_complete"),
+                    since=base)
+                payload = done["payload"] if done else {}
+                count_field = "shortTagCount" if wire == "short" else "overTagCount"
+                expect(payload.get("status") == wire and payload.get(count_field) == tags,
+                       f"completion payload {payload}")
+                if doc_number:
+                    doc = next(x for x in sim.cmd("state")["state"]["documents"]
+                               if x["number"] == doc_number)
+                    expect(doc["open"], "a recorded report closed the document")
+                case.note(f"{status_label}: recorded, receipt open, returned home")
+
+        # ------------------------------------------------------------ O19
+        with c.case("O19", "The batch reference is read-only: typing does not change it and the "
+                           "prefilled value is what gets confirmed") as case:
+            fresh_offload(sim)
+            base = len(sim.events())
+            scan_pair("TAG-PAL-001", "BC-001")
+            expect(on_edit_step(), "edit step did not appear")
+            node = d.scroll_to("etBatchRef")
+            expect(node is not None, "batch field not found")
+            d.tap(xy=node.center)
+            d.text("TYPED")
+            # No keyboard opens for a read-only field, so there is nothing to dismiss here.
+            batch = field_text("etBatchRef")
+            expect(batch == "BATCH-A", f"batch changed to {batch!r}")
+            case.shot(d.screenshot("O19_batch_read_only"))
+            tap_btn("btnConfirmOffload")
+            wait_count("6 of 12")
+            seen = sim.wait_for(
+                lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_confirm"), since=base)
+            expect(seen and seen["payload"].get("batchReference") == "BATCH-A",
+                   f"confirm payload {seen and seen['payload']}")
 
         # ------------------------------------------------------------ O13
         with c.case("O13", "Back to scan from the edit step keeps the scanned pair") as case:
@@ -346,14 +419,14 @@ def main():
             case.shot(d.screenshot("O14_scan_only"))
 
         # ------------------------------------------------------------ O15
-        with c.case("O15", "Too Little Tags asks how many; 0 is refused and Cancel returns to the classifications") as case:
+        with c.case("O15", "Too Many Tags asks how many; 0 is refused and Cancel returns to the classifications") as case:
             fresh_offload(sim)
             base = len(sim.events())
             scan_pair("TAG-PAL-003", "BC-003")
             expect(on_edit_step(), "edit step did not appear")
             tap_btn("btnConfirmOffload")
             wait_count("1 of 3")
-            d.tap(text="Too Little Tags")
+            d.tap(text="Too Many Tags")
             expect(d.find(id="etTagCount", retries=6) is not None, "no tag-count prompt")
             case.shot(d.screenshot("O15_tag_count_prompt"))
             # 0 is refused locally and nothing goes on the wire
@@ -369,16 +442,16 @@ def main():
             expect(not sent, f"an invalid count still reached the station: {sent}")
             # Cancel goes back to the classifications rather than abandoning the close
             d.tap(text="Cancel")
-            expect(d.find(text="Too Little Tags", retries=6) is not None,
+            expect(d.find(text="Too Many Tags", retries=6) is not None,
                    "Cancel did not return to the close classifications")
-            close_as("Too Little Tags", 5)
+            close_as("Too Many Tags", 2)
             expect(d.find(id="tileOffload", retries=10) is not None, "did not return home")
             done = sim.wait_for(
                 lambda e: e["dir"] == "in" and e["topic"].endswith("req/offload_complete"), since=base)
             payload = done["payload"] if done else {}
-            expect(payload.get("status") == "short" and payload.get("shortTagCount") == 5,
+            expect(payload.get("status") == "over" and payload.get("overTagCount") == 2,
                    f"completion payload {payload}")
-            case.note("retry sent shortTagCount=5")
+            case.note("retry sent overTagCount=2")
 
     return c.finish()
 

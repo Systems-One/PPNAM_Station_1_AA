@@ -57,6 +57,7 @@
     <string name="status_label_complete">Complete</string>
     <string name="status_label_over">Over</string>
     <string name="msg_document_closed">%1$s closed — %2$s</string>
+    <string name="msg_tag_report_recorded">%1$s — %2$s reported (%3$d tags)</string>
     <string name="error_incomplete_match">Station sent an incomplete match. Try again.</string>
     <string name="error_invalid_weight">Enter a bag weight greater than 0.</string>
     <string name="error_invalid_count">Enter a whole number of bags greater than 0.</string>
